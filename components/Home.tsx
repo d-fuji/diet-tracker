@@ -1,0 +1,272 @@
+"use client";
+
+// ホーム（俯瞰・閲覧専用）: 今日の収支カード ＋ 目標体重までカード。
+// メモ化は React Compiler に委ねるため手動の useMemo は使わない。
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  ReferenceLine,
+  Tooltip,
+  Cell,
+} from "recharts";
+import type { DB } from "@/types";
+import { bmrCalc, getDay, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
+import {
+  KCAL_PER_KG,
+  round,
+  shiftDate,
+  todayStr,
+  fmtDate,
+  daysBetween,
+} from "@/lib/format";
+import { Card, Num, SectionLabel } from "@/components/ui";
+
+interface WeekDatum {
+  date: string;
+  bal: number;
+}
+
+/** 今日の収支（大きな収支数値＋摂取/消費2本バー＋直近7日の収支バー）。 */
+function Ledger({
+  burned,
+  intake,
+  weekData,
+}: {
+  burned: number;
+  intake: number;
+  weekData: WeekDatum[];
+}) {
+  const balance = burned - intake;
+  const deficit = balance >= 0;
+  const max = Math.max(intake, burned, 1);
+  const bars = [
+    { label: "摂取", val: intake, cls: intake > burned ? "bg-rose-400" : "bg-slate-400" },
+    { label: "消費", val: burned, cls: "bg-emerald-500" },
+  ];
+  return (
+    <Card className="p-5">
+      <SectionLabel>今日の収支</SectionLabel>
+      <div className="mt-1 flex items-end gap-1.5">
+        <Num className={`text-4xl font-bold ${deficit ? "text-emerald-600" : "text-rose-500"}`}>
+          {deficit ? "−" : "+"}
+          {Math.abs(round(balance)).toLocaleString()}
+        </Num>
+        <span className="text-sm text-slate-400 mb-1.5">kcal</span>
+      </div>
+      <div className="mt-4 space-y-2.5">
+        {bars.map((b) => (
+          <div key={b.label} className="flex items-center gap-2.5">
+            <span className="w-7 shrink-0 text-[11px] font-medium text-slate-500">{b.label}</span>
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div className={`h-full rounded-full ${b.cls}`} style={{ width: `${(b.val / max) * 100}%` }} />
+            </div>
+            <Num className="w-12 shrink-0 text-right text-xs font-semibold text-slate-700">
+              {round(b.val).toLocaleString()}
+            </Num>
+          </div>
+        ))}
+      </div>
+      {weekData.length > 1 && (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">直近7日の推移</span>
+            <span className="flex items-center gap-2 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-emerald-500" />
+                赤字
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-sm bg-rose-500" />
+                黒字
+              </span>
+            </span>
+          </div>
+          <div className="h-28">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekData} margin={{ top: 8, right: 4, left: -6, bottom: 0 }}>
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={40}
+                />
+                <ReferenceLine y={0} stroke="#cbd5e1" />
+                <Bar dataKey="bal" radius={[4, 4, 4, 4]}>
+                  {weekData.map((d, i) => (
+                    <Cell key={i} fill={d.bal >= 0 ? "#10b981" : "#f43f5e"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** 目標体重まで（残りkg≈kcal、開始/現在/目標、30日折れ線、フッターに成果と達成ペース）。 */
+function GoalProgress({ db }: { db: DB }) {
+  const sorted = [...db.weightLog].sort((a, b) => a.date.localeCompare(b.date));
+  if (!db.profile || sorted.length === 0) return null;
+  const start = sorted[0].weight;
+  const cur = sorted[sorted.length - 1].weight;
+  const goal = db.profile.goalWeight;
+  const done = start - cur;
+  const toGo = cur - goal;
+  const reached = cur <= goal;
+  const toGoKg = Math.max(0, toGo);
+  const doneKcal = Math.round(Math.max(0, done) * KCAL_PER_KG);
+  const remainKcal = Math.round(toGoKg * KCAL_PER_KG);
+
+  const td = db.profile.targetDate;
+  let dailyNeed: number | null = null;
+  if (td && !reached && toGoKg > 0) {
+    const daysLeft = daysBetween(todayStr(), td);
+    if (daysLeft > 0) dailyNeed = Math.round((toGoKg * KCAL_PER_KG) / daysLeft);
+  }
+
+  const data = sorted.slice(-30).map((w) => ({ date: w.date.slice(5), weight: w.weight }));
+  const ws = data.map((d) => d.weight);
+  const yMin = data.length ? Math.floor(Math.min(...ws)) - 1 : 0;
+  const yMax = data.length ? Math.ceil(Math.max(...ws)) + 1 : 1;
+
+  return (
+    <Card className="p-5">
+      <SectionLabel
+        right={
+          td ? <span className="text-xs tabular-nums text-slate-400">期日 {fmtDate(td).slice(0, -3)}</span> : null
+        }
+      >
+        目標体重まで
+      </SectionLabel>
+      <div className="mt-1 flex items-end gap-1.5">
+        {reached ? (
+          <Num className="text-3xl font-bold text-emerald-600">達成 🎉</Num>
+        ) : (
+          <>
+            <span className="text-sm text-slate-400 mb-1.5">あと</span>
+            <Num className="text-4xl font-bold text-slate-900">{toGoKg.toFixed(1)}</Num>
+            <span className="text-sm text-slate-400 mb-1.5">kg</span>
+            <span className="ml-1 mb-1.5 text-xs tabular-nums text-slate-400">
+              ≈ {remainKcal.toLocaleString()} kcal
+            </span>
+          </>
+        )}
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-slate-50 py-2">
+          <div className="text-[11px] text-slate-400">開始</div>
+          <div>
+            <Num className="text-base font-semibold text-slate-700">{start}</Num>
+            <span className="text-[11px] text-slate-400"> kg</span>
+          </div>
+        </div>
+        <div className="rounded-xl bg-emerald-50 py-2">
+          <div className="text-[11px] text-emerald-600/90">現在</div>
+          <div>
+            <Num className="text-base font-bold text-emerald-700">{cur}</Num>
+            <span className="text-[11px] text-emerald-600/90"> kg</span>
+          </div>
+        </div>
+        <div className="rounded-xl bg-slate-50 py-2">
+          <div className="text-[11px] text-slate-400">目標</div>
+          <div>
+            <Num className="text-base font-semibold text-slate-700">{goal}</Num>
+            <span className="text-[11px] text-slate-400"> kg</span>
+          </div>
+        </div>
+      </div>
+      {data.length > 1 && (
+        <div className="mt-4 h-32">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 8, right: 8, left: -6, bottom: 0 }}>
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
+              <YAxis
+                domain={[yMin, yMax]}
+                allowDecimals={false}
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tickLine={false}
+                axisLine={false}
+                width={30}
+              />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }} />
+              <ReferenceLine y={goal} stroke="#10b981" strokeDasharray="4 4" />
+              <Line type="monotone" dataKey="weight" stroke="#0f172a" strokeWidth={2} dot={{ r: 2 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">これまでの成果</span>
+          <span className="tabular-nums">
+            <span className="font-semibold text-emerald-600">−{Math.max(0, done).toFixed(1)}kg</span>
+            <span className="text-slate-400"> ・ 約{doneKcal.toLocaleString()}kcal</span>
+          </span>
+        </div>
+        {dailyNeed != null && (
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">達成ペース</span>
+            <span className="tabular-nums">
+              <span className="font-bold text-emerald-600">1日 −{dailyNeed.toLocaleString()}kcal</span>
+              <span className="text-slate-400"> の赤字</span>
+            </span>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => void }) {
+  const date = todayStr();
+  const day = getDay(db, date);
+  const lw = latestWeight(db);
+  const profile = db.profile;
+  const bmr = profile && lw ? bmrCalc(profile.sex, profile.age, profile.heightCm, lw) : 0;
+  const meals = sumMeals(day);
+  const burned = bmr + sumActivities(day);
+
+  const balanceData: WeekDatum[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = shiftDate(date, -i);
+    const dy = getDay(db, d);
+    const w = latestWeight(db, d) ?? lw;
+    const b =
+      (profile && w ? bmrCalc(profile.sex, profile.age, profile.heightCm, w) : 0) + sumActivities(dy);
+    balanceData.push({ date: fmtDate(d).slice(0, -3), bal: round(b - sumMeals(dy).kcal) });
+  }
+
+  if (!profile) {
+    return (
+      <div className="px-4 pt-8">
+        <Card className="p-6 text-center">
+          <p className="text-slate-600 text-sm leading-relaxed">
+            最初にプロフィール（性別・年齢・身長・目標体重）を登録すると、基礎代謝・収支・PFC目標が計算されます。
+          </p>
+          <button
+            onClick={openSettings}
+            className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            プロフィールを登録
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 px-4 pt-2 pb-4">
+      <Ledger burned={burned} intake={meals.kcal} weekData={balanceData} />
+      <GoalProgress db={db} />
+    </div>
+  );
+}

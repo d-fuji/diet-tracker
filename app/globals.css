@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS の慣性スクロールと、数値の等幅表示を安定させる */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
