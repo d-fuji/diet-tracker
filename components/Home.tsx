@@ -15,7 +15,7 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
-import { Share2 } from "lucide-react";
+import { Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DB } from "@/types";
 import { bmrCalc, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
 import {
@@ -81,40 +81,94 @@ interface WeekDatum {
   recorded: boolean;
 }
 
-/** 今日の収支（大きな収支数値＋摂取/消費2本バー＋直近7日の収支バー）。 */
+/** 収支カードのヘッダー（前日/翌日ナビ＋日付ラベル＋共有 or 未記入バッジ）。 */
+function LedgerHeader({
+  date,
+  setDate,
+  recorded,
+  shareText,
+}: {
+  date: string;
+  setDate: (d: string) => void;
+  recorded: boolean;
+  shareText: string;
+}) {
+  const isToday = date === todayStr();
+  const label = isToday ? "今日の収支" : `${fmtDate(date)}の収支`;
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={() => setDate(shiftDate(date, -1))}
+          className="-ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100"
+          aria-label="前日"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+        <button
+          onClick={() => setDate(shiftDate(date, 1))}
+          disabled={isToday}
+          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
+          aria-label="翌日"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        {!isToday && (
+          <button
+            onClick={() => setDate(todayStr())}
+            className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:bg-slate-200"
+          >
+            今日へ
+          </button>
+        )}
+        {recorded ? (
+          <ShareButton text={shareText} />
+        ) : (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+            未記入
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** 選択日の収支（大きな収支数値＋摂取/消費2本バー＋直近7日の収支バー）。 */
 function Ledger({
+  date,
+  setDate,
   burned,
   intake,
   weekData,
   recorded,
   shareText,
 }: {
+  date: string;
+  setDate: (d: string) => void;
   burned: number;
   intake: number;
   weekData: WeekDatum[];
   recorded: boolean;
   shareText: string;
 }) {
+  const isToday = date === todayStr();
   if (!recorded) {
     return (
       <Card className="p-5">
-        <SectionLabel
-          right={
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
-              未記入
-            </span>
-          }
-        >
-          今日の収支
-        </SectionLabel>
+        <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
         <div className="mt-1 flex items-end gap-1.5">
           <Num className="text-4xl font-bold text-slate-300">−−−</Num>
           <span className="text-sm text-slate-300 mb-1.5">kcal</span>
         </div>
         <p className="mt-3 text-[13px] leading-relaxed text-slate-500">
-          まだ記録がありません。食事を記録すると今日の収支が表示されます。
+          {isToday
+            ? "まだ記録がありません。食事を記録すると今日の収支が表示されます。"
+            : "この日の記録はありません。"}
         </p>
-        <Week weekData={weekData} />
+        <Week weekData={weekData} isToday={isToday} />
       </Card>
     );
   }
@@ -128,7 +182,7 @@ function Ledger({
   ];
   return (
     <Card className="p-5">
-      <SectionLabel right={<ShareButton text={shareText} />}>今日の収支</SectionLabel>
+      <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
       <div className="mt-1 flex items-end gap-1.5">
         <Num className={`text-4xl font-bold ${deficit ? "text-emerald-600" : "text-rose-500"}`}>
           {deficit ? "−" : "+"}
@@ -149,19 +203,19 @@ function Ledger({
           </div>
         ))}
       </div>
-      <Week weekData={weekData} />
+      <Week weekData={weekData} isToday={isToday} />
     </Card>
   );
 }
 
-/** 直近7日の収支バー。記録なしの日はバーを描かずギャップにして「未記入」を示す。 */
-function Week({ weekData }: { weekData: WeekDatum[] }) {
+/** 選択日までの7日の収支バー。記録なしの日はバーを描かずギャップにして「未記入」を示す。 */
+function Week({ weekData, isToday = true }: { weekData: WeekDatum[]; isToday?: boolean }) {
   if (weekData.length <= 1) return null;
   const anyUnrecorded = weekData.some((d) => !d.recorded);
   return (
     <div className="mt-4 border-t border-slate-100 pt-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] text-slate-400">直近7日の推移</span>
+        <span className="text-[11px] text-slate-400">{isToday ? "直近7日の推移" : "この日までの7日"}</span>
         <span className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-emerald-500" />
@@ -336,9 +390,10 @@ function GoalProgress({ db }: { db: DB }) {
 }
 
 export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => void }) {
-  const date = todayStr();
+  // 収支カードは過去日も遡れる（閲覧専用）。デフォルトは今日。
+  const [date, setDate] = useState(todayStr());
   const day = getDay(db, date);
-  const lw = latestWeight(db);
+  const lw = latestWeight(db, date);
   const profile = db.profile;
   const bmr = profile && lw ? bmrCalc(profile.sex, profile.age, profile.heightCm, lw) : 0;
   const meals = sumMeals(day);
@@ -360,8 +415,10 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     });
   }
 
-  // 共有用サマリー（体重・目標進捗は GoalProgress と同じ算出ロジック）。
-  const sortedW = [...db.weightLog].sort((a, b) => a.date.localeCompare(b.date));
+  // 共有用サマリー（体重・目標進捗は選択日時点の値で算出して収支と整合させる）。
+  const sortedW = [...db.weightLog]
+    .filter((w) => w.date <= date)
+    .sort((a, b) => a.date.localeCompare(b.date));
   let shareGoal: ShareGoal | null = null;
   if (profile && sortedW.length > 0) {
     const start = sortedW[0].weight;
@@ -402,6 +459,8 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
   return (
     <div className="space-y-4 px-4 pt-2 pb-4">
       <Ledger
+        date={date}
+        setDate={setDate}
         burned={burned}
         intake={meals.kcal}
         weekData={balanceData}
