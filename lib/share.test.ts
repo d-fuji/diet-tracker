@@ -18,7 +18,7 @@ describe("buildShareText", () => {
 
   it("日付を fmtDate で曜日付き表示し、ハッシュタグを付ける", () => {
     const t = buildShareText(base);
-    expect(t).toContain("📊 6/30(火) の収支ダイエット");
+    expect(t).toContain("📊 6/30(火) のカロリー収支");
     expect(t.trimEnd().endsWith("#収支ダイエット")).toBe(true);
   });
 

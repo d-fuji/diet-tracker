@@ -22,7 +22,7 @@ export function buildShareText({ date, balance, intake, burned, goal }: ShareInp
   const deficit = balance >= 0;
   const sign = deficit ? "−" : "+";
   const lines = [
-    `📊 ${fmtDate(date)} の収支ダイエット`,
+    `📊 ${fmtDate(date)} のカロリー収支`,
     "",
     `${deficit ? "✅" : "⚠️"} 収支 ${sign}${Math.abs(round(balance)).toLocaleString()} kcal（${deficit ? "赤字" : "黒字"}）`,
     `🍽 摂取 ${round(intake).toLocaleString()} kcal`,
