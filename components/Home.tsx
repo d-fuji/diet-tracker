@@ -165,11 +165,11 @@ function Week({ weekData }: { weekData: WeekDatum[] }) {
         <span className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-emerald-500" />
-            赤字
+            消費が多い
           </span>
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-rose-500" />
-            黒字
+            摂取が多い
           </span>
           {anyUnrecorded && (
             <span className="flex items-center gap-1">
@@ -326,7 +326,7 @@ function GoalProgress({ db }: { db: DB }) {
             <span className="text-slate-400">達成ペース</span>
             <span className="tabular-nums">
               <span className="font-bold text-emerald-600">1日 −{dailyNeed.toLocaleString()}kcal</span>
-              <span className="text-slate-400"> の赤字</span>
+              <span className="text-slate-400"> の収支</span>
             </span>
           </div>
         )}

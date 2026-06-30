@@ -144,7 +144,7 @@ export function SettingsModal({
             </div>
             {preview.days && preview.days > 0 && preview.kg > 0 && (
               <div className="flex justify-between">
-                <span>1日の赤字（ペース）</span>
+                <span>1日の収支（ペース）</span>
                 <Num className="font-semibold">−{preview.def.toLocaleString()} kcal</Num>
               </div>
             )}

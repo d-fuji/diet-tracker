@@ -11,7 +11,7 @@ export interface ShareGoal {
 
 export interface ShareInput {
   date: string; // "YYYY-MM-DD"
-  balance: number; // 収支 = 消費 − 摂取（>=0 で赤字）
+  balance: number; // 収支 = 消費 − 摂取（>=0 で消費超）
   intake: number; // 摂取 kcal
   burned: number; // 消費 kcal
   goal?: ShareGoal | null; // 体重・目標進捗（プロフィール/体重未登録なら null）
@@ -19,12 +19,12 @@ export interface ShareInput {
 
 /** 共有用のサマリー文面を組み立てる。煽らない中立トーン（HANDOFF §6-7）。 */
 export function buildShareText({ date, balance, intake, burned, goal }: ShareInput): string {
-  const deficit = balance >= 0;
-  const sign = deficit ? "−" : "+";
+  // 収支は符号（−=消費超／+=摂取超）で表す。赤字/黒字は家計簿の意味と逆で紛らわしいため使わない。
+  const sign = balance >= 0 ? "−" : "+";
   const lines = [
     `📊 ${fmtDate(date)} のカロリー収支`,
     "",
-    `${deficit ? "✅" : "⚠️"} 収支 ${sign}${Math.abs(round(balance)).toLocaleString()} kcal（${deficit ? "赤字" : "黒字"}）`,
+    `収支 ${sign}${Math.abs(round(balance)).toLocaleString()} kcal`,
     `🍽 摂取 ${round(intake).toLocaleString()} kcal`,
     `🔥 消費 ${round(burned).toLocaleString()} kcal`,
   ];
