@@ -22,9 +22,9 @@ export function buildShareText({ date, balance, intake, burned, goal }: ShareInp
   // 収支は符号（−=消費超／+=摂取超）で表す。赤字/黒字は家計簿の意味と逆で紛らわしいため使わない。
   const sign = balance >= 0 ? "−" : "+";
   const lines = [
-    `📊 ${fmtDate(date)} のカロリー収支`,
+    `${fmtDate(date)} のカロリー収支`,
     "",
-    `収支 ${sign}${Math.abs(round(balance)).toLocaleString()} kcal`,
+    `📊 収支 ${sign}${Math.abs(round(balance)).toLocaleString()} kcal`,
     `🍽 摂取 ${round(intake).toLocaleString()} kcal`,
     `🔥 消費 ${round(burned).toLocaleString()} kcal`,
   ];

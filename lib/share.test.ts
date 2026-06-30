@@ -6,7 +6,7 @@ describe("buildShareText", () => {
 
   it("消費超（収支>=0）は「−」符号で表示し、赤字/黒字の語は使わない", () => {
     const t = buildShareText(base);
-    expect(t).toContain("収支 −320 kcal");
+    expect(t).toContain("📊 収支 −320 kcal");
     expect(t).toContain("🍽 摂取 1,680 kcal");
     expect(t).toContain("🔥 消費 2,000 kcal");
     expect(t).not.toContain("赤字");
@@ -15,13 +15,13 @@ describe("buildShareText", () => {
 
   it("摂取超（収支<0）は「+」符号で表示", () => {
     const t = buildShareText({ ...base, balance: -150 });
-    expect(t).toContain("収支 +150 kcal");
+    expect(t).toContain("📊 収支 +150 kcal");
     expect(t).not.toContain("黒字");
   });
 
   it("日付を fmtDate で曜日付き表示し、ハッシュタグを付ける", () => {
     const t = buildShareText(base);
-    expect(t).toContain("📊 6/30(火) のカロリー収支");
+    expect(t).toContain("6/30(火) のカロリー収支");
     expect(t.trimEnd().endsWith("#収支ダイエット")).toBe(true);
   });
 
