@@ -1,17 +1,23 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { Card as HCard, Modal as HModal } from "@heroui/react";
 import { clamp, round } from "@/lib/format";
+
+// HeroUI(v3) の Button をそのまま共有プリミティブとして再エクスポート。
+// react-aria ベースのため、押下ハンドラは onClick ではなく onPress を使う。
+export { Button } from "@heroui/react";
 
 export const inputCls =
   "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 text-[15px] tabular-nums outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100";
 
+// HeroUI Card をベースに、これまでのライトな見た目（白地・細枠・薄影）を維持。
+// 後ろの className が tailwind-merge で優先されるので既存スタイルはそのまま効く。
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl bg-white border border-slate-200/80 shadow-sm ${className}`}>
+    <HCard className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ${className}`}>
       {children}
-    </div>
+    </HCard>
   );
 }
 
@@ -46,6 +52,8 @@ export function Field({
   );
 }
 
+// HeroUI Modal の合成APIをラップし、既存の `{title, onClose, children}` インターフェースを維持。
+// アクセシビリティ（フォーカストラップ・ESC・aria）とアニメーションは HeroUI 側が担当する。
 export function Modal({
   title,
   onClose,
@@ -56,22 +64,26 @@ export function Modal({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1.5 hover:bg-slate-100 text-slate-500"
-            aria-label="閉じる"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <HModal
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <HModal.Backdrop>
+        <HModal.Container placement="auto" size="md">
+          <HModal.Dialog>
+            <HModal.Header className="flex items-center justify-between">
+              <HModal.Heading className="text-base font-semibold text-slate-900">
+                {title}
+              </HModal.Heading>
+              <HModal.CloseTrigger aria-label="閉じる" />
+            </HModal.Header>
+            <HModal.Body>{children}</HModal.Body>
+          </HModal.Dialog>
+        </HModal.Container>
+      </HModal.Backdrop>
+    </HModal>
   );
 }
 
