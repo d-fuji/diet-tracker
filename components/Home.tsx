@@ -16,6 +16,7 @@ import {
   Cell,
 } from "recharts";
 import { Share2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Meter } from "@heroui/react";
 import type { DB } from "@/types";
 import { dayBurn, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
 import {
@@ -27,7 +28,7 @@ import {
   daysBetween,
 } from "@/lib/format";
 import { buildShareText, shareSummary, type ShareGoal } from "@/lib/share";
-import { Card, Num, SectionLabel } from "@/components/ui";
+import { Card, Num, SectionLabel, Button, Chip, Stat } from "@/components/ui";
 
 /** 今日のサマリーを SNS/友達に共有するボタン（Web Share API、非対応時はコピー）。 */
 function ShareButton({ text }: { text: string }) {
@@ -51,23 +52,17 @@ function ShareButton({ text }: { text: string }) {
 
   return (
     <>
-      <button
-        onClick={onShare}
-        className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:bg-slate-200"
-        aria-label="今日のサマリーを共有"
-      >
+      <Button variant="secondary" size="sm" className="rounded-full" aria-label="今日のサマリーを共有" onPress={onShare}>
         <Share2 size={13} />
         共有
-      </button>
+      </Button>
       {feedback && (
         <div
           className="fixed inset-x-0 bottom-20 z-40 mx-auto flex max-w-md justify-center px-4"
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">
-            {feedback}
-          </div>
+          <div className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{feedback}</div>
         </div>
       )}
     </>
@@ -98,38 +93,33 @@ function LedgerHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-0.5">
-        <button
-          onClick={() => setDate(shiftDate(date, -1))}
-          className="-ml-1 rounded-full p-1 text-slate-400 hover:bg-slate-100"
-          aria-label="前日"
-        >
+        <Button isIconOnly variant="ghost" size="sm" aria-label="前日" onPress={() => setDate(shiftDate(date, -1))}>
           <ChevronLeft size={16} />
-        </button>
+        </Button>
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
-        <button
-          onClick={() => setDate(shiftDate(date, 1))}
-          disabled={isToday}
-          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
           aria-label="翌日"
+          isDisabled={isToday}
+          onPress={() => setDate(shiftDate(date, 1))}
         >
           <ChevronRight size={16} />
-        </button>
+        </Button>
       </div>
       <div className="flex items-center gap-2">
         {!isToday && (
-          <button
-            onClick={() => setDate(todayStr())}
-            className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:bg-slate-200"
-          >
+          <Button variant="secondary" size="sm" className="rounded-full" onPress={() => setDate(todayStr())}>
             今日へ
-          </button>
+          </Button>
         )}
         {recorded ? (
           <ShareButton text={shareText} />
         ) : (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+          <Chip size="sm" className="bg-slate-100 text-slate-400">
             未記入
-          </span>
+          </Chip>
         )}
       </div>
     </div>
@@ -161,7 +151,7 @@ function Ledger({
         <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
         <div className="mt-1 flex items-end gap-1.5">
           <Num className="text-4xl font-bold text-slate-300">−−−</Num>
-          <span className="text-sm text-slate-300 mb-1.5">kcal</span>
+          <span className="mb-1.5 text-sm text-slate-300">kcal</span>
         </div>
         <p className="mt-3 text-[13px] leading-relaxed text-slate-500">
           {isToday
@@ -188,15 +178,17 @@ function Ledger({
           {deficit ? "−" : "+"}
           {Math.abs(round(balance)).toLocaleString()}
         </Num>
-        <span className="text-sm text-slate-400 mb-1.5">kcal</span>
+        <span className="mb-1.5 text-sm text-slate-400">kcal</span>
       </div>
       <div className="mt-4 space-y-2.5">
         {bars.map((b) => (
           <div key={b.label} className="flex items-center gap-2.5">
             <span className="w-7 shrink-0 text-[11px] font-medium text-slate-500">{b.label}</span>
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-              <div className={`h-full rounded-full ${b.cls}`} style={{ width: `${(b.val / max) * 100}%` }} />
-            </div>
+            <Meter value={b.val} maxValue={max} className="flex-1">
+              <Meter.Track className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <Meter.Fill className={`h-full rounded-full ${b.cls}`} />
+              </Meter.Track>
+            </Meter>
             <Num className="w-12 shrink-0 text-right text-xs font-semibold text-slate-700">
               {round(b.val).toLocaleString()}
             </Num>
@@ -315,37 +307,28 @@ function GoalProgress({ db }: { db: DB }) {
           <Num className="text-3xl font-bold text-emerald-600">達成 🎉</Num>
         ) : (
           <>
-            <span className="text-sm text-slate-400 mb-1.5">あと</span>
+            <span className="mb-1.5 text-sm text-slate-400">あと</span>
             <Num className="text-4xl font-bold text-slate-900">{toGoKg.toFixed(1)}</Num>
-            <span className="text-sm text-slate-400 mb-1.5">kg</span>
-            <span className="ml-1 mb-1.5 text-xs tabular-nums text-slate-400">
+            <span className="mb-1.5 text-sm text-slate-400">kg</span>
+            <span className="mb-1.5 ml-1 text-xs tabular-nums text-slate-400">
               ≈ {remainKcal.toLocaleString()} kcal
             </span>
           </>
         )}
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl bg-slate-50 py-2">
-          <div className="text-[11px] text-slate-400">開始</div>
-          <div>
-            <Num className="text-base font-semibold text-slate-700">{start}</Num>
-            <span className="text-[11px] text-slate-400"> kg</span>
-          </div>
-        </div>
-        <div className="rounded-xl bg-emerald-50 py-2">
-          <div className="text-[11px] text-emerald-600/90">現在</div>
-          <div>
-            <Num className="text-base font-bold text-emerald-700">{cur}</Num>
-            <span className="text-[11px] text-emerald-600/90"> kg</span>
-          </div>
-        </div>
-        <div className="rounded-xl bg-slate-50 py-2">
-          <div className="text-[11px] text-slate-400">目標</div>
-          <div>
-            <Num className="text-base font-semibold text-slate-700">{goal}</Num>
-            <span className="text-[11px] text-slate-400"> kg</span>
-          </div>
-        </div>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <Stat label="開始">
+          <Num className="text-base font-semibold">{start}</Num>
+          <span className="text-[11px] text-slate-400"> kg</span>
+        </Stat>
+        <Stat label="現在" accent>
+          <Num className="text-base font-bold">{cur}</Num>
+          <span className="text-[11px] text-emerald-600/90"> kg</span>
+        </Stat>
+        <Stat label="目標">
+          <Num className="text-base font-semibold">{goal}</Num>
+          <span className="text-[11px] text-slate-400"> kg</span>
+        </Stat>
       </div>
       {data.length > 1 && (
         <div className="mt-4 h-32">
@@ -440,15 +423,12 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     return (
       <div className="px-4 pt-8">
         <Card className="p-6 text-center">
-          <p className="text-slate-600 text-sm leading-relaxed">
+          <p className="text-sm leading-relaxed text-slate-600">
             最初にプロフィール（性別・年齢・身長・目標体重）を登録すると、基礎代謝・収支・PFC目標が計算されます。
           </p>
-          <button
-            onClick={openSettings}
-            className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white"
-          >
+          <Button variant="primary" className="mt-4" onPress={openSettings}>
             プロフィールを登録
-          </button>
+          </Button>
         </Card>
       </div>
     );

@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { DB, Workout, Mutate } from "@/types";
 import { getDay, withDay } from "@/lib/calc";
 import { uid, n, round } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, Button, Input } from "@/components/ui";
+import { Card, Num, SectionLabel, Field, Modal, Button, Input, Stat, Separator } from "@/components/ui";
 import { DateNav } from "@/components/DateNav";
 
 function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose: () => void }) {
@@ -17,51 +17,38 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
   const valid = ex && weight !== "" && reps !== "" && sets !== "";
   return (
     <Modal title="種目を記録" onClose={onClose}>
-      <Field label="種目">
-        <Input
-          placeholder="ベンチプレス / スクワット など"
-          value={ex}
-          onChange={(e) => setEx(e.target.value)}
-        />
-      </Field>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <Field label="重量(kg)">
+      <div className="flex flex-col gap-3">
+        <Field label="種目">
           <Input
-            type="number"
-            inputMode="decimal"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
+            placeholder="ベンチプレス / スクワット など"
+            value={ex}
+            onChange={(e) => setEx(e.target.value)}
           />
         </Field>
-        <Field label="回数">
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-          />
-        </Field>
-        <Field label="セット">
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={sets}
-            onChange={(e) => setSets(e.target.value)}
-          />
-        </Field>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="重量(kg)">
+            <Input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
+          </Field>
+          <Field label="回数">
+            <Input type="number" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+          </Field>
+          <Field label="セット">
+            <Input type="number" inputMode="numeric" value={sets} onChange={(e) => setSets(e.target.value)} />
+          </Field>
+        </div>
+        <Button
+          variant="primary"
+          fullWidth
+          isDisabled={!valid}
+          className="mt-1"
+          onPress={() => {
+            onAdd({ id: uid(), ex, weight: n(weight), reps: n(reps), sets: n(sets) });
+            onClose();
+          }}
+        >
+          追加
+        </Button>
       </div>
-      <Button
-        variant="primary"
-        fullWidth
-        isDisabled={!valid}
-        className="mt-4"
-        onPress={() => {
-          onAdd({ id: uid(), ex, weight: n(weight), reps: n(reps), sets: n(sets) });
-          onClose();
-        }}
-      >
-        追加
-      </Button>
     </Modal>
   );
 }
@@ -90,53 +77,47 @@ export function WorkoutScreen({
       <div className="px-4 space-y-4">
         <Card className="p-5">
           <SectionLabel>今日のトレーニング</SectionLabel>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-xl bg-slate-50 py-3">
-              <div className="text-[11px] text-slate-400">種目数</div>
-              <Num className="text-2xl font-bold text-slate-900">{day.workouts.length}</Num>
-            </div>
-            <div className="rounded-xl bg-slate-50 py-3">
-              <div className="text-[11px] text-slate-400">総挙上量</div>
-              <Num className="text-2xl font-bold text-slate-900">{round(totalVol).toLocaleString()}</Num>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Stat label="種目数">
+              <Num className="text-2xl font-bold">{day.workouts.length}</Num>
+            </Stat>
+            <Stat label="総挙上量">
+              <Num className="text-2xl font-bold">{round(totalVol).toLocaleString()}</Num>
               <span className="text-xs text-slate-400"> kg</span>
-            </div>
+            </Stat>
           </div>
         </Card>
         <Card className="p-4">
           <SectionLabel
             right={
-              <button
-                onClick={() => setOpen(true)}
-                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white"
-              >
+              <Button variant="primary" size="sm" onPress={() => setOpen(true)}>
                 <Plus size={14} />
                 追加
-              </button>
+              </Button>
             }
           >
             種目
           </SectionLabel>
-          <div className="mt-2 divide-y divide-slate-100">
+          <div className="mt-2">
             {day.workouts.length === 0 && (
               <p className="py-3 text-xs text-slate-400">この日の筋トレを記録しましょう。</p>
             )}
-            {day.workouts.map((w) => (
-              <div key={w.id} className="flex items-center justify-between py-2.5">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">{w.ex}</p>
-                  <p className="text-[11px] text-slate-400 tabular-nums">
-                    {w.weight}kg × {w.reps}回 × {w.sets}セット
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Num className="text-xs text-slate-400">{round(w.weight * w.reps * w.sets)}kg</Num>
-                  <button
-                    onClick={() => del(w.id)}
-                    className="text-slate-300 hover:text-rose-500"
-                    aria-label="削除"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+            {day.workouts.map((w, i) => (
+              <div key={w.id}>
+                {i > 0 && <Separator />}
+                <div className="flex items-center justify-between py-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{w.ex}</p>
+                    <p className="text-[11px] text-slate-400 tabular-nums">
+                      {w.weight}kg × {w.reps}回 × {w.sets}セット
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Num className="text-xs text-slate-400">{round(w.weight * w.reps * w.sets)}kg</Num>
+                    <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => del(w.id)}>
+                      <Trash2 size={16} className="text-slate-400" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}

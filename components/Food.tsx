@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import type { DB, Food, FoodTag, Mutate } from "@/types";
 import { TAGS, n, uid } from "@/lib/format";
-import { Card, Field, Modal, Button, Input } from "@/components/ui";
+import { Card, Field, Modal, Button, Input, Chip } from "@/components/ui";
 
 /** 入力中は数値が空文字になりうるためフォーム専用のゆるい型。 */
 export interface FoodDraft {
@@ -38,79 +38,65 @@ export function FoodForm({
   const valid = f.name && f.kcal !== "" && f.p !== "" && f.f !== "" && f.c !== "";
   return (
     <Modal title={initial?.id ? "食品を編集" : "食品を追加"} onClose={onClose}>
-      <Field label="名称（1食分の分量込み）">
-        <Input
-          placeholder="例: サラダチキン 1個"
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
-        />
-      </Field>
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        <Field label="kcal">
+      <div className="flex flex-col gap-3">
+        <Field label="名称（1食分の分量込み）">
           <Input
-            type="number"
-            value={f.kcal}
-            onChange={(e) => setF({ ...f, kcal: e.target.value })}
+            placeholder="例: サラダチキン 1個"
+            value={f.name}
+            onChange={(e) => setF({ ...f, name: e.target.value })}
           />
         </Field>
-        <Field label="P(g)">
-          <Input
-            type="number"
-            value={f.p}
-            onChange={(e) => setF({ ...f, p: e.target.value })}
-          />
-        </Field>
-        <Field label="F(g)">
-          <Input
-            type="number"
-            value={f.f}
-            onChange={(e) => setF({ ...f, f: e.target.value })}
-          />
-        </Field>
-        <Field label="C(g)">
-          <Input
-            type="number"
-            value={f.c}
-            onChange={(e) => setF({ ...f, c: e.target.value })}
-          />
-        </Field>
-      </div>
-      <div className="mt-3">
-        <span className="text-xs font-medium text-slate-500">タグ</span>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {TAGS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => toggle(t.id)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                f.tags.includes(t.id) ? t.cls : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="grid grid-cols-4 gap-2">
+          <Field label="kcal">
+            <Input type="number" value={f.kcal} onChange={(e) => setF({ ...f, kcal: e.target.value })} />
+          </Field>
+          <Field label="P(g)">
+            <Input type="number" value={f.p} onChange={(e) => setF({ ...f, p: e.target.value })} />
+          </Field>
+          <Field label="F(g)">
+            <Input type="number" value={f.f} onChange={(e) => setF({ ...f, f: e.target.value })} />
+          </Field>
+          <Field label="C(g)">
+            <Input type="number" value={f.c} onChange={(e) => setF({ ...f, c: e.target.value })} />
+          </Field>
         </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-slate-500">タグ</span>
+          <div className="flex flex-wrap gap-1.5">
+            {TAGS.map((t) => (
+              <Button
+                key={t.id}
+                size="sm"
+                variant={f.tags.includes(t.id) ? "primary" : "outline"}
+                className="rounded-full"
+                onPress={() => toggle(t.id)}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <Button
+          variant="primary"
+          fullWidth
+          isDisabled={!valid}
+          className="mt-1"
+          onPress={() => {
+            onSave({
+              id: f.id || uid(),
+              name: f.name,
+              kcal: n(f.kcal),
+              p: n(f.p),
+              f: n(f.f),
+              c: n(f.c),
+              tags: f.tags,
+            });
+            onClose();
+          }}
+        >
+          保存
+        </Button>
       </div>
-      <Button
-        variant="primary"
-        fullWidth
-        isDisabled={!valid}
-        className="mt-4"
-        onPress={() => {
-          onSave({
-            id: f.id || uid(),
-            name: f.name,
-            kcal: n(f.kcal),
-            p: n(f.p),
-            f: n(f.f),
-            c: n(f.c),
-            tags: f.tags,
-          });
-          onClose();
-        }}
-      >
-        保存
-      </Button>
     </Modal>
   );
 }
@@ -144,9 +130,15 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
     });
   const del = (id: string) => mutate((d) => ({ ...d, foods: d.foods.filter((f) => f.id !== id) }));
 
+  const sorts: [SortKey, string][] = [
+    ["name", "名前"],
+    ["kcal", "低kcal順"],
+    ["pratio", "高タンパク順"],
+  ];
+
   return (
     <div className="pb-4">
-      <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur px-4 pt-3 pb-2 space-y-2">
+      <div className="sticky top-0 z-10 space-y-2 bg-slate-50/95 px-4 pt-3 pb-2 backdrop-blur">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
           <Input
@@ -158,73 +150,59 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {[{ id: "all" as const, label: "すべて" }, ...TAGS].map((t) => (
-            <button
+            <Button
               key={t.id}
-              onClick={() => setFilter(t.id as FilterKey)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-                filter === t.id ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-500"
-              }`}
+              size="sm"
+              variant={filter === t.id ? "primary" : "outline"}
+              className="shrink-0 rounded-full"
+              onPress={() => setFilter(t.id as FilterKey)}
             >
               {t.label}
-            </button>
+            </Button>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-1.5 text-xs">
           <span className="text-slate-400">並び替え</span>
-          {(
-            [
-              ["name", "名前"],
-              ["kcal", "低kcal順"],
-              ["pratio", "高タンパク順"],
-            ] as [SortKey, string][]
-          ).map(([k, l]) => (
-            <button
+          {sorts.map(([k, l]) => (
+            <Button
               key={k}
-              onClick={() => setSort(k)}
-              className={`rounded-md px-2 py-0.5 ${
-                sort === k ? "bg-emerald-100 text-emerald-700 font-semibold" : "text-slate-500"
-              }`}
+              size="sm"
+              variant={sort === k ? "secondary" : "ghost"}
+              className="rounded-full"
+              onPress={() => setSort(k)}
             >
               {l}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
-      <div className="px-4 space-y-2 mt-1">
+      <div className="mt-1 space-y-2 px-4">
         {list.map((f) => (
           <Card key={f.id} className="p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-800">{f.name}</p>
-                <p className="text-[11px] text-slate-400 tabular-nums mt-0.5">
+                <p className="mt-0.5 text-[11px] tabular-nums text-slate-400">
                   {f.kcal}kcal · P{f.p} F{f.f} C{f.c}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {f.tags.map((t) => {
                     const tag = TAGS.find((x) => x.id === t);
                     return tag ? (
-                      <span key={t} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${tag.cls}`}>
+                      <Chip key={t} size="sm" className={tag.cls}>
                         {tag.label}
-                      </span>
+                      </Chip>
                     ) : null;
                   })}
                 </div>
               </div>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  onClick={() => setEdit(f)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-                  aria-label="編集"
-                >
-                  <Pencil size={15} />
-                </button>
-                <button
-                  onClick={() => del(f.id)}
-                  className="rounded-lg p-1.5 text-slate-300 hover:text-rose-500 hover:bg-slate-100"
-                  aria-label="削除"
-                >
-                  <Trash2 size={15} />
-                </button>
+              <div className="flex shrink-0 gap-0.5">
+                <Button isIconOnly variant="ghost" size="sm" aria-label="編集" onPress={() => setEdit(f)}>
+                  <Pencil size={15} className="text-slate-400" />
+                </Button>
+                <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => del(f.id)}>
+                  <Trash2 size={15} className="text-slate-400" />
+                </Button>
               </div>
             </div>
           </Card>
@@ -236,13 +214,16 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
           数値はサンプル/ユーザー登録です。実際の表示を確認のうえ編集してください。
         </p>
       </div>
-      <button
-        onClick={() => setEdit(null)}
-        className="fixed bottom-24 right-5 z-20 flex items-center justify-center rounded-full bg-emerald-600 p-4 text-white shadow-lg shadow-emerald-600/30"
+      <Button
+        isIconOnly
+        variant="primary"
+        size="lg"
         aria-label="食品を追加"
+        className="fixed bottom-24 right-5 z-20 h-14 w-14 rounded-full shadow-lg shadow-emerald-600/30"
+        onPress={() => setEdit(null)}
       >
         <Plus size={22} />
-      </button>
+      </Button>
       {edit !== undefined && <FoodForm initial={edit} onSave={save} onClose={() => setEdit(undefined)} />}
     </div>
   );
