@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Target } from "lucide-react";
 import type { DB, Sex, ActivityLevel } from "@/types";
 import { bmrCalc, latestWeight, maintenanceKcal } from "@/lib/calc";
-import { KCAL_PER_KG, neatFactor, ACTIVITY_LEVELS, n, daysBetween, todayStr, shiftDate, fmtDate } from "@/lib/format";
+import { KCAL_PER_KG, neatFactor, ACTIVITY_LEVELS, n, daysBetween, todayStr, shiftDate } from "@/lib/format";
 import { demoDB, defaultDB } from "@/lib/seed";
 import { Num, Field, Modal, inputCls } from "@/components/ui";
 
@@ -206,14 +206,6 @@ export function SettingsModal({
           目標期日は未来の日付を選んでください。
         </p>
       )}
-      {preview && preview.unreal && preview.minDays && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
-          このペースは速すぎます（目標が基礎代謝を下回るため下限で調整中）。現実的な最短は約{preview.minDays}日後、
-          <span className="font-semibold"> {fmtDate(shiftDate(todayStr(), preview.minDays)).slice(0, -3)}頃</span>
-          です。
-        </p>
-      )}
-
       <button
         disabled={!valid}
         onClick={() => {
