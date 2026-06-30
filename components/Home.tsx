@@ -308,7 +308,7 @@ function GoalProgress({ db }: { db: DB }) {
               />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }} />
               <ReferenceLine y={goal} stroke="#10b981" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="weight" stroke="#0f172a" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="weight" name="体重" stroke="#0f172a" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -317,8 +317,8 @@ function GoalProgress({ db }: { db: DB }) {
         <div className="flex items-center justify-between">
           <span className="text-slate-400">これまでの成果</span>
           <span className="tabular-nums">
-            <span className="font-semibold text-emerald-600">−{Math.max(0, done).toFixed(1)}kg</span>
-            <span className="text-slate-400"> ・ 約{doneKcal.toLocaleString()}kcal</span>
+            <span className="font-semibold text-emerald-600">{Math.max(0, done).toFixed(1)} kg</span>
+            <span className="text-slate-400"> ≈ {doneKcal.toLocaleString()} kcal</span>
           </span>
         </div>
         {dailyNeed != null && (
