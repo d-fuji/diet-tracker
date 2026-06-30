@@ -35,8 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# pwa (generated)
-/public/sw.js
+# pwa: public/sw.js は手書きソースなので追跡する（無視しない）。
+# 生成系（workbox を使う場合）だけ無視する。
 /public/workbox-*.js
-/public/sw.js.map
 /public/workbox-*.js.map

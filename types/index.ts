@@ -69,6 +69,9 @@ export interface DB {
   days: Record<string, DayLog>; // キーは "YYYY-MM-DD"
 }
 
+/** 不変更新関数。前状態から次状態を作って保存する（store.mutate と同一シグネチャ）。 */
+export type Mutate = (fn: (prev: DB) => DB) => void;
+
 /** maintenanceKcal の戻り値 */
 export interface Maintenance {
   kcal: number;

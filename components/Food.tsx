@@ -3,11 +3,9 @@
 // 食品DB（UGC）: 検索・タグフィルタ・並び替え・追加/編集/削除。FoodForm は記録画面からも利用。
 import { useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
-import type { DB, Food, FoodTag } from "@/types";
+import type { DB, Food, FoodTag, Mutate } from "@/types";
 import { TAGS, n, uid } from "@/lib/format";
 import { Card, Field, Modal, inputCls } from "@/components/ui";
-
-type Mutate = (fn: (prev: DB) => DB) => void;
 
 /** 入力中は数値が空文字になりうるためフォーム専用のゆるい型。 */
 export interface FoodDraft {

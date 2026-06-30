@@ -2,65 +2,13 @@
 
 // 記録（入力）: セグメント[食事/体重/活動]。食事はクイック記録、活動はMET電卓付き。
 import { useMemo, useRef, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Plus,
-  Minus,
-  Trash2,
-  Undo2,
-  Calculator,
-} from "lucide-react";
-import type { DB, Food, Slot, Activity } from "@/types";
+import { Search, Plus, Minus, Trash2, Undo2, Calculator } from "lucide-react";
+import type { DB, Food, Slot, Activity, Mutate, TargetPlan } from "@/types";
 import { bmrCalc, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
-import type { TargetPlan } from "@/types";
-import {
-  SLOTS,
-  uid,
-  n,
-  round,
-  clamp,
-  shiftDate,
-  todayStr,
-  fmtDate,
-  shortName,
-  slotByTime,
-  mealSlot,
-} from "@/lib/format";
+import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot } from "@/lib/format";
 import { Card, Num, SectionLabel, Field, Modal, MacroRow, inputCls } from "@/components/ui";
 import { FoodForm, type FoodDraft } from "@/components/Food";
-
-type Mutate = (fn: (prev: DB) => DB) => void;
-
-/** 日付ナビ（前日/今日/翌日）。 */
-function DateNav({ date, setDate }: { date: string; setDate: (d: string) => void }) {
-  return (
-    <div className="flex items-center justify-center gap-3 px-4 py-3">
-      <button
-        onClick={() => setDate(shiftDate(date, -1))}
-        className="rounded-full p-1.5 hover:bg-slate-100 text-slate-500"
-        aria-label="前日"
-      >
-        <ChevronLeft size={20} />
-      </button>
-      <button
-        onClick={() => setDate(todayStr())}
-        className="min-w-[110px] text-center text-sm font-semibold text-slate-900"
-      >
-        {date === todayStr() ? "今日 " : ""}
-        {fmtDate(date)}
-      </button>
-      <button
-        onClick={() => setDate(shiftDate(date, 1))}
-        className="rounded-full p-1.5 hover:bg-slate-100 text-slate-500"
-        aria-label="翌日"
-      >
-        <ChevronRight size={20} />
-      </button>
-    </div>
-  );
-}
+import { DateNav } from "@/components/DateNav";
 
 /** 食事サマリー（摂取・残り/超過・PFC目標対比のみ。消費・収支は出さない）。 */
 function DailySummary({
