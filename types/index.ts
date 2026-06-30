@@ -4,12 +4,16 @@ export type Sex = "male" | "female";
 export type Slot = "朝" | "昼" | "夜" | "間食";
 export type FoodTag = "diet" | "conveni" | "eatout" | "sweets";
 
+/** 日常の活動量（運動を除く）。NEAT係数のマッピングに使う。 */
+export type ActivityLevel = "low" | "normal" | "high" | "veryhigh";
+
 export interface Profile {
   sex: Sex;
   age: number;
   heightCm: number;
   goalWeight: number; // kg
   targetDate: string | null; // "YYYY-MM-DD"。痩せるペースの逆算に使用
+  activityLevel?: ActivityLevel; // 日常活動量 → NEAT係数。未設定は "normal"(1.2) 扱い
 }
 
 export interface WeightEntry {

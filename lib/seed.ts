@@ -93,7 +93,7 @@ export function demoDB(): DB {
   }
 
   return {
-    profile: { sex: "male", age: 32, heightCm: 174, goalWeight: 68, targetDate: shiftDate(todayStr(), 150) },
+    profile: { sex: "male", age: 32, heightCm: 174, goalWeight: 68, targetDate: shiftDate(todayStr(), 150), activityLevel: "normal" },
     weightLog,
     foods,
     days,

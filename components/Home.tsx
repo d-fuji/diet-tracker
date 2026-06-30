@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DB } from "@/types";
-import { bmrCalc, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
+import { dayBurn, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
 import {
   KCAL_PER_KG,
   round,
@@ -395,9 +395,8 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
   const day = getDay(db, date);
   const lw = latestWeight(db, date);
   const profile = db.profile;
-  const bmr = profile && lw ? bmrCalc(profile.sex, profile.age, profile.heightCm, lw) : 0;
   const meals = sumMeals(day);
-  const burned = bmr + sumActivities(day);
+  const burned = profile && lw ? Math.round(dayBurn(profile, day, lw)) : sumActivities(day);
   const recorded = hasRecord(day);
 
   const balanceData: WeekDatum[] = [];
@@ -405,8 +404,7 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     const d = shiftDate(date, -i);
     const dy = getDay(db, d);
     const w = latestWeight(db, d) ?? lw;
-    const b =
-      (profile && w ? bmrCalc(profile.sex, profile.age, profile.heightCm, w) : 0) + sumActivities(dy);
+    const b = profile && w ? dayBurn(profile, dy, w) : sumActivities(dy);
     const dayRecorded = hasRecord(dy);
     balanceData.push({
       date: fmtDate(d).slice(0, -3),

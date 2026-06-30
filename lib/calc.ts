@@ -1,6 +1,6 @@
 // 計算ロジック（HANDOFF §4）。すべて純関数。プロトタイプの式をそのまま仕様とする。
-import type { DB, DayLog, Sex, Maintenance, TargetPlan } from "@/types";
-import { KCAL_PER_KG, COLDSTART_FACTOR, daysBetween, todayStr, round } from "@/lib/format";
+import type { DB, DayLog, Sex, Profile, Maintenance, TargetPlan } from "@/types";
+import { KCAL_PER_KG, TEF_RATE, neatFactor, daysBetween, todayStr, round } from "@/lib/format";
 
 /** 基礎代謝 BMR（Mifflin-St Jeor）。最新体重で計算（痩せれば基礎代謝も下がる）。 */
 export function bmrCalc(sex: Sex, age: number, h: number, w: number): number {
@@ -46,15 +46,42 @@ export function sumMeals(day: DayLog): { kcal: number; p: number; f: number; c: 
 export const sumActivities = (day: DayLog): number =>
   day.activities.reduce((a, x) => a + num(x.kcal), 0);
 
+/** その日の食事誘発性熱産生（TEF/DIT）= その日の摂取kcal × TEF率。 */
+export const dayTef = (day: DayLog): number => sumMeals(day).kcal * TEF_RATE;
+
 /**
- * 維持カロリー = 活動を記録した日（直近21日・5日以上）の実測平均（BMR + 活動）。
- * 立ち上がりは BMR × COLDSTART_FACTOR で仮置き。
+ * 指定日の消費カロリー = BMR(その日の体重)×NEAT係数 + 実測活動 + その日のTEF。
+ * 維持カロリー(maintenanceKcal)の単日版。日次表示と維持カロリーで式を一致させる。
+ */
+export function dayBurn(p: Profile, day: DayLog, weightKg: number): number {
+  return bmrCalc(p.sex, p.age, p.heightCm, weightKg) * neatFactor(p.activityLevel) + sumActivities(day) + dayTef(day);
+}
+
+/** 直近 window 日で食事記録のある日の平均摂取kcal（TEF/DIT の算出用）。記録なしは 0。 */
+function avgIntake(db: DB, window = 21): number {
+  const dates = Object.keys(db.days)
+    .filter((dt) => getDay(db, dt).meals.length > 0)
+    .sort()
+    .slice(-window);
+  if (dates.length === 0) return 0;
+  const total = dates.reduce((a, dt) => a + sumMeals(getDay(db, dt)).kcal, 0);
+  return total / dates.length;
+}
+
+/**
+ * 維持カロリー（TDEE）= 基礎代謝×NEAT係数 + 実測した活動 + 食事誘発性熱産生（摂取×TEF率）。
+ * - NEAT係数（profile.activityLevel）で「寝てても消費する分＋無意識の日常活動」を表す。
+ * - 活動を記録した日が直近21日で5日以上あれば、BMR×NEAT+活動の実測平均を使う（source: "measured"）。
+ * - 5日未満は立ち上がり（source: "estimate"）として活動の実測分を省く。
+ * - TEF は記録した食事から両モード共通で加算する。
  */
 export function maintenanceKcal(db: DB): Maintenance | null {
   const lw = latestWeight(db);
   const p = db.profile;
   if (!p || !lw) return null;
+  const neat = neatFactor(p.activityLevel);
   const bmr = bmrCalc(p.sex, p.age, p.heightCm, lw);
+  const tef = avgIntake(db) * TEF_RATE;
   const dates = Object.keys(db.days)
     .filter((dt) => getDay(db, dt).activities.length > 0)
     .sort();
@@ -62,12 +89,12 @@ export function maintenanceKcal(db: DB): Maintenance | null {
   if (recent.length >= 5) {
     const burns = recent.map((dt) => {
       const w = latestWeight(db, dt) ?? lw;
-      return bmrCalc(p.sex, p.age, p.heightCm, w) + sumActivities(getDay(db, dt));
+      return bmrCalc(p.sex, p.age, p.heightCm, w) * neat + sumActivities(getDay(db, dt));
     });
     const avg = burns.reduce((a, b) => a + b, 0) / burns.length;
-    return { kcal: Math.round(avg), source: "measured", days: recent.length, bmr };
+    return { kcal: Math.round(avg + tef), source: "measured", days: recent.length, bmr };
   }
-  return { kcal: Math.round(bmr * COLDSTART_FACTOR), source: "estimate", days: recent.length, bmr };
+  return { kcal: Math.round(bmr * neat + tef), source: "estimate", days: recent.length, bmr };
 }
 
 /**
