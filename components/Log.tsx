@@ -6,9 +6,30 @@ import { Search, Plus, Minus, Trash2, Undo2, Calculator } from "lucide-react";
 import type { DB, Food, Slot, Activity, Mutate, TargetPlan } from "@/types";
 import { bmrCalc, dayTef, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
 import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot, neatFactor } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, MacroRow, inputCls } from "@/components/ui";
+import {
+  Card,
+  Num,
+  SectionLabel,
+  Field,
+  Modal,
+  MacroRow,
+  Button,
+  Input,
+  Separator,
+  SegTabs,
+} from "@/components/ui";
+import { Meter } from "@heroui/react";
 import { FoodForm, type FoodDraft } from "@/components/Food";
 import { DateNav } from "@/components/DateNav";
+
+/** タブラベルに付ける小さなカウントバッジ。 */
+function TabBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-100 px-1 text-[10px] font-bold text-emerald-700">
+      {children}
+    </span>
+  );
+}
 
 /** 食事サマリー（摂取・残り/超過・PFC目標対比のみ。消費・収支は出さない）。 */
 function DailySummary({
@@ -20,7 +41,6 @@ function DailySummary({
 }) {
   const goalKcal = plan?.target ?? 0;
   const remain = goalKcal - intake.kcal;
-  const pct = goalKcal > 0 ? (intake.kcal / goalKcal) * 100 : 0;
   const over = remain < 0;
   return (
     <Card className="p-5">
@@ -36,7 +56,7 @@ function DailySummary({
       <div className="mt-1 flex items-end justify-between">
         <div className="flex items-end gap-1.5">
           <Num className="text-4xl font-bold text-slate-900">{round(intake.kcal).toLocaleString()}</Num>
-          <span className="text-sm text-slate-400 mb-1.5">kcal 摂取</span>
+          <span className="mb-1.5 text-sm text-slate-400">kcal 摂取</span>
         </div>
         {plan && (
           <div className="text-right">
@@ -49,12 +69,15 @@ function DailySummary({
         )}
       </div>
       {plan && (
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-          <div
-            className={`h-full rounded-full ${over ? "bg-rose-400" : "bg-emerald-500"}`}
-            style={{ width: `${clamp(pct, 0, 100)}%` }}
-          />
-        </div>
+        <Meter
+          value={clamp(intake.kcal, 0, goalKcal || 1)}
+          maxValue={goalKcal || 1}
+          className="mt-3 block"
+        >
+          <Meter.Track className="h-2 overflow-hidden rounded-full bg-slate-100">
+            <Meter.Fill className={`h-full rounded-full ${over ? "bg-rose-400" : "bg-emerald-500"}`} />
+          </Meter.Track>
+        </Meter>
       )}
       <div className="mt-4 space-y-2.5">
         {plan ? (
@@ -153,75 +176,84 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
         食事
       </SectionLabel>
 
-      <div className="mt-3 flex gap-1 rounded-xl bg-slate-100 p-1">
-        {SLOTS.map((s) => {
-          const sub = day.meals
-            .filter((m) => mealSlot(m) === s)
-            .reduce((a, m) => a + m.kcal * (m.qty ?? 1), 0);
-          return (
-            <button
-              key={s}
-              onClick={() => setSlot(s)}
-              className={`flex-1 rounded-lg py-1.5 text-center transition ${slot === s ? "bg-white shadow-sm" : ""}`}
-            >
-              <div className={`text-xs font-semibold ${slot === s ? "text-slate-900" : "text-slate-500"}`}>{s}</div>
-              {sub > 0 && <div className="text-[10px] tabular-nums text-slate-400">{round(sub)}</div>}
-            </button>
-          );
-        })}
+      <div className="mt-3">
+        <SegTabs
+          aria-label="食事スロット"
+          value={slot}
+          onChange={(s) => setSlot(s)}
+          items={SLOTS.map((s) => {
+            const sub = day.meals.filter((m) => mealSlot(m) === s).reduce((a, m) => a + m.kcal * (m.qty ?? 1), 0);
+            return {
+              id: s,
+              label: (
+                <span className="flex items-center gap-1">
+                  {s}
+                  {sub > 0 && <span className="text-[10px] tabular-nums text-slate-400">{round(sub)}</span>}
+                </span>
+              ),
+            };
+          })}
+        />
       </div>
 
-      <div className="relative mt-2">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          className={`${inputCls} pl-9 mt-0`}
+      <div className="relative mt-3">
+        <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
+        <Input
+          className="pl-9"
           placeholder={`「${slot}」に追加 — 検索して即記録`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
       {q && (
-        <div className="mt-1.5 divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
-          {results.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => {
-                log(f);
-                setQ("");
-              }}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-emerald-50 active:bg-emerald-100"
-            >
-              <div>
-                <p className="text-sm text-slate-800">{f.name}</p>
-                <p className="text-[11px] text-slate-400 tabular-nums">
-                  {f.kcal}kcal · P{f.p} F{f.f} C{f.c}
-                </p>
-              </div>
-              <Plus size={16} className="text-emerald-600 shrink-0" />
-            </button>
+        <Card className="mt-1.5 overflow-hidden">
+          {results.map((f, i) => (
+            <div key={f.id}>
+              {i > 0 && <Separator />}
+              <Button
+                variant="ghost"
+                fullWidth
+                className="h-auto justify-between rounded-none px-3 py-2.5"
+                onPress={() => {
+                  log(f);
+                  setQ("");
+                }}
+              >
+                <div className="text-left">
+                  <p className="text-sm text-slate-800">{f.name}</p>
+                  <p className="text-[11px] tabular-nums text-slate-400">
+                    {f.kcal}kcal · P{f.p} F{f.f} C{f.c}
+                  </p>
+                </div>
+                <Plus size={16} className="shrink-0 text-emerald-600" />
+              </Button>
+            </div>
           ))}
-          <button
-            onClick={() => setNewFood({ name: q, kcal: "", p: "", f: "", c: "", tags: [] })}
-            className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm text-emerald-700 hover:bg-emerald-50"
+          {results.length > 0 && <Separator />}
+          <Button
+            variant="ghost"
+            fullWidth
+            className="justify-start gap-1.5 rounded-none px-3 py-2.5 text-emerald-700"
+            onPress={() => setNewFood({ name: q, kcal: "", p: "", f: "", c: "", tags: [] })}
           >
             <Plus size={15} />「{q}」を新規作成
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {!q && (
-        <div className="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <div className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {quickList.map((f) => (
-            <button
+            <Button
               key={f.id}
-              onClick={() => log(f)}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1.5 pl-3 pr-2 active:scale-95 active:border-emerald-400 transition"
+              size="sm"
+              variant="outline"
+              className="shrink-0 rounded-full"
+              onPress={() => log(f)}
             >
-              <span className="text-[13px] text-slate-700">{shortName(f.name)}</span>
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                <Plus size={13} />
-              </span>
-            </button>
+              {shortName(f.name)}
+              <Plus size={13} className="text-emerald-600" />
+            </Button>
           ))}
         </div>
       )}
@@ -236,45 +268,55 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
           const sub = items.reduce((a, m) => a + m.kcal * (m.qty ?? 1), 0);
           return (
             <div key={s}>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+              <div className="flex items-center justify-between pb-1">
                 <span className="text-xs font-semibold text-slate-600">{s}</span>
                 <Num className="text-[11px] text-slate-400">{round(sub)} kcal</Num>
               </div>
-              <div className="divide-y divide-slate-100">
-                {items.map((m) => {
+              <Separator />
+              <div>
+                {items.map((m, idx) => {
                   const qy = m.qty ?? 1;
                   return (
-                    <div key={m.id} className="flex items-center justify-between gap-2 py-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-slate-800">{m.name}</p>
-                        <p className="text-[11px] tabular-nums text-slate-400">
-                          <span className="font-medium text-slate-600">{round(m.kcal * qy)}kcal</span>
-                          {"  "}P{+(m.p * qy).toFixed(1)} F{+(m.f * qy).toFixed(1)} C{+(m.c * qy).toFixed(1)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setQty(m.id, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500"
-                          aria-label="数量を減らす"
-                        >
-                          <Minus size={13} />
-                        </button>
-                        <Num className="w-5 text-center text-sm font-semibold text-slate-700">{qy}</Num>
-                        <button
-                          onClick={() => setQty(m.id, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500"
-                          aria-label="数量を増やす"
-                        >
-                          <Plus size={13} />
-                        </button>
-                        <button
-                          onClick={() => del(m.id)}
-                          className="ml-1 text-slate-300 hover:text-rose-500"
-                          aria-label="削除"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                    <div key={m.id}>
+                      {idx > 0 && <Separator />}
+                      <div className="flex items-center justify-between gap-2 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-slate-800">{m.name}</p>
+                          <p className="text-[11px] tabular-nums text-slate-400">
+                            <span className="font-medium text-slate-600">{round(m.kcal * qy)}kcal</span>
+                            {"  "}P{+(m.p * qy).toFixed(1)} F{+(m.f * qy).toFixed(1)} C{+(m.c * qy).toFixed(1)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            isIconOnly
+                            variant="secondary"
+                            size="sm"
+                            aria-label="数量を減らす"
+                            onPress={() => setQty(m.id, -1)}
+                          >
+                            <Minus size={13} />
+                          </Button>
+                          <Num className="w-5 text-center text-sm font-semibold text-slate-700">{qy}</Num>
+                          <Button
+                            isIconOnly
+                            variant="secondary"
+                            size="sm"
+                            aria-label="数量を増やす"
+                            onPress={() => setQty(m.id, 1)}
+                          >
+                            <Plus size={13} />
+                          </Button>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            size="sm"
+                            aria-label="削除"
+                            onPress={() => del(m.id)}
+                          >
+                            <Trash2 size={16} className="text-slate-400" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -309,40 +351,24 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
   const [met, setMet] = useState("3.5");
   const kcal = round(n(met) * n(weight ?? 0) * (n(min) / 60));
   return (
-    <div className="rounded-xl bg-slate-50 p-3 mb-3">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-2">
+    <div className="mb-3 rounded-xl bg-slate-50 p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
         <Calculator size={14} /> ウォーキング概算
       </div>
       <div className="grid grid-cols-3 gap-2">
         <Field label="時間(分)">
-          <input
-            className={inputCls}
-            type="number"
-            inputMode="numeric"
-            value={min}
-            onChange={(e) => setMin(e.target.value)}
-          />
+          <Input type="number" inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value)} />
         </Field>
         <Field label="強度MET" hint="散歩3.0/早歩き4.3">
-          <input
-            className={inputCls}
-            type="number"
-            step="0.1"
-            value={met}
-            onChange={(e) => setMet(e.target.value)}
-          />
+          <Input type="number" step="0.1" value={met} onChange={(e) => setMet(e.target.value)} />
         </Field>
         <div className="flex flex-col justify-end">
           <span className="text-xs text-slate-400">
             ≒ <Num className="font-semibold text-slate-700">{kcal}</Num> kcal
           </span>
-          <button
-            disabled={!kcal}
-            onClick={() => onApply(kcal)}
-            className="mt-1 rounded-lg bg-slate-900 disabled:opacity-30 px-2 py-1.5 text-xs font-semibold text-white"
-          >
+          <Button variant="secondary" size="sm" isDisabled={!kcal} className="mt-1" onPress={() => onApply(kcal)}>
             反映
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -369,35 +395,30 @@ function ActivityForm({
           if (!label) setLabel("ウォーキング");
         }}
       />
-      <Field label="活動名">
-        <input
-          className={inputCls}
-          placeholder="ウォーキング / 通勤 / アクティブエネルギー など"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-        />
-      </Field>
-      <div className="mt-2">
-        <Field label="消費kcal">
-          <input
-            className={inputCls}
-            type="number"
-            inputMode="numeric"
-            value={kcal}
-            onChange={(e) => setKcal(e.target.value)}
+      <div className="flex flex-col gap-3">
+        <Field label="活動名">
+          <Input
+            placeholder="ウォーキング / 通勤 / アクティブエネルギー など"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
           />
         </Field>
+        <Field label="消費kcal">
+          <Input type="number" inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value)} />
+        </Field>
+        <Button
+          variant="primary"
+          fullWidth
+          isDisabled={!label || kcal === ""}
+          className="mt-1"
+          onPress={() => {
+            onAdd({ id: uid(), label, kcal: n(kcal) });
+            onClose();
+          }}
+        >
+          追加
+        </Button>
       </div>
-      <button
-        disabled={!label || kcal === ""}
-        onClick={() => {
-          onAdd({ id: uid(), label, kcal: n(kcal) });
-          onClose();
-        }}
-        className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
-      >
-        追加
-      </button>
     </Modal>
   );
 }
@@ -422,8 +443,7 @@ function WeightCard({
         体重（必須）
       </SectionLabel>
       <div className="mt-2 flex gap-2">
-        <input
-          className={`${inputCls} mt-0`}
+        <Input
           type="number"
           step="0.1"
           inputMode="decimal"
@@ -431,15 +451,16 @@ function WeightCard({
           value={wInput}
           onChange={(e) => setWInput(e.target.value)}
         />
-        <button
-          onClick={() => {
+        <Button
+          variant="primary"
+          isDisabled={wInput === ""}
+          className="shrink-0"
+          onPress={() => {
             if (wInput !== "") onSave(n(wInput));
           }}
-          disabled={wInput === ""}
-          className="shrink-0 rounded-xl bg-slate-900 disabled:opacity-30 px-4 text-sm font-semibold text-white"
         >
           保存
-        </button>
+        </Button>
       </div>
       {weightDone && <p className="mt-2 text-[11px] text-emerald-600">この日の体重は記録済みです。</p>}
     </Card>
@@ -485,7 +506,7 @@ export function LogScreen({
   const delAct = (id: string) =>
     mutate((d) => withDay(d, date, (dy) => ({ ...dy, activities: dy.activities.filter((m) => m.id !== id) })));
 
-  const TABS_L: { id: Section; badge: string | number | null }[] = [
+  const sections: { id: Section; badge: string | number | null }[] = [
     { id: "食事", badge: day.meals.length || null },
     { id: "体重", badge: weightDone ? "✓" : null },
     { id: "活動", badge: actCount || null },
@@ -495,28 +516,20 @@ export function LogScreen({
     <div className="pb-4">
       <DateNav date={date} setDate={setDate} />
       <div className="space-y-4 px-4">
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-          {TABS_L.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSection(t.id)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition ${
-                section === t.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
-              }`}
-            >
-              {t.id}
-              {t.badge != null && (
-                <span
-                  className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
-                    section === t.id ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"
-                  }`}
-                >
-                  {t.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <SegTabs
+          aria-label="記録の種類"
+          value={section}
+          onChange={(s) => setSection(s)}
+          items={sections.map((t) => ({
+            id: t.id,
+            label: (
+              <span className="flex items-center">
+                {t.id}
+                {t.badge != null && <TabBadge>{t.badge}</TabBadge>}
+              </span>
+            ),
+          }))}
+        />
 
         {section === "食事" && (
           <>
@@ -525,21 +538,16 @@ export function LogScreen({
           </>
         )}
 
-        {section === "体重" && (
-          <WeightCard key={date} lw={lw} wToday={wToday} onSave={saveWeight} />
-        )}
+        {section === "体重" && <WeightCard key={date} lw={lw} wToday={wToday} onSave={saveWeight} />}
 
         {section === "活動" && (
           <Card className="p-4">
             <SectionLabel
               right={
-                <button
-                  onClick={() => setActOpen(true)}
-                  className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white"
-                >
+                <Button variant="primary" size="sm" onPress={() => setActOpen(true)}>
                   <Plus size={14} />
                   追加
-                </button>
+                </Button>
               }
             >
               活動
@@ -547,7 +555,7 @@ export function LogScreen({
             <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">消費カロリー</span>
-                <span className="text-sm font-bold text-slate-900 tabular-nums">
+                <span className="text-sm font-bold tabular-nums text-slate-900">
                   {round(burnTotal).toLocaleString()}
                 </span>
               </div>
@@ -557,22 +565,21 @@ export function LogScreen({
                 {round(tefKcal).toLocaleString()}
               </div>
             </div>
-            <div className="mt-2 divide-y divide-slate-100">
+            <div className="mt-2">
               {day.activities.length === 0 && (
                 <p className="py-3 text-xs text-slate-400">基礎代謝に加算される運動・歩行を記録。</p>
               )}
-              {day.activities.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-2">
-                  <p className="text-sm text-slate-800">{a.label}</p>
-                  <div className="flex items-center gap-2">
-                    <Num className="text-sm font-semibold text-slate-700">+{a.kcal}</Num>
-                    <button
-                      onClick={() => delAct(a.id)}
-                      className="text-slate-300 hover:text-rose-500"
-                      aria-label="削除"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+              {day.activities.map((a, i) => (
+                <div key={a.id}>
+                  {i > 0 && <Separator />}
+                  <div className="flex items-center justify-between py-2">
+                    <p className="text-sm text-slate-800">{a.label}</p>
+                    <div className="flex items-center gap-1">
+                      <Num className="text-sm font-semibold text-slate-700">+{a.kcal}</Num>
+                      <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => delAct(a.id)}>
+                        <Trash2 size={16} className="text-slate-400" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

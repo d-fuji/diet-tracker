@@ -2,6 +2,7 @@
 
 // アプリシェル: ヘッダー＋4タブ（ホーム/記録/筋トレ/食品）＋ボトムナビ＋設定モーダル。
 import { useEffect, useState } from "react";
+import { Button, Spinner } from "@heroui/react";
 import { Home, NotebookPen, Dumbbell, Database, Settings } from "lucide-react";
 import { useDietStore } from "@/store/useDietStore";
 import { todayStr } from "@/lib/format";
@@ -36,7 +37,8 @@ export default function App() {
 
   if (!loaded || !db) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-400">
+      <div className="flex h-screen items-center justify-center gap-2 bg-slate-50 text-sm text-slate-400">
+        <Spinner size="sm" />
         読み込み中…
       </div>
     );
@@ -48,13 +50,16 @@ export default function App() {
         <h1 className="text-base font-bold tracking-tight">
           <span className="text-emerald-600">収支</span>ダイエット
         </h1>
-        <button
-          onClick={() => setSettings(true)}
-          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100"
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          onPress={() => setSettings(true)}
+          className="rounded-full text-slate-400"
           aria-label="設定"
         >
           <Settings size={20} />
-        </button>
+        </Button>
       </header>
       <main className="flex-1">
         {tab === "home" && <HomeScreen db={db} openSettings={() => setSettings(true)} />}

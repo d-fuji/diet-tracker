@@ -7,7 +7,7 @@ import type { DB, Sex, ActivityLevel } from "@/types";
 import { bmrCalc, latestWeight, maintenanceKcal } from "@/lib/calc";
 import { KCAL_PER_KG, neatFactor, ACTIVITY_LEVELS, n, daysBetween, todayStr, shiftDate, fmtDate } from "@/lib/format";
 import { demoDB, defaultDB } from "@/lib/seed";
-import { Num, Field, Modal, inputCls } from "@/components/ui";
+import { Num, Field, Modal, Button, Input, Select } from "@/components/ui";
 
 type Mutate = (fn: (prev: DB) => DB) => void;
 
@@ -97,34 +97,32 @@ export function SettingsModal({
     <Modal title="プロフィール・目標設定" onClose={onClose}>
       <div className="grid grid-cols-2 gap-2">
         <Field label="性別">
-          <select
-            className={inputCls}
+          <Select
+            aria-label="性別"
             value={f.sex}
-            onChange={(e) => setF({ ...f, sex: e.target.value as Sex })}
-          >
-            <option value="male">男性</option>
-            <option value="female">女性</option>
-          </select>
+            onChange={(v) => setF({ ...f, sex: v as Sex })}
+            options={[
+              { value: "male", label: "男性" },
+              { value: "female", label: "女性" },
+            ]}
+          />
         </Field>
         <Field label="年齢">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.age}
             onChange={(e) => setF({ ...f, age: e.target.value })}
           />
         </Field>
         <Field label="身長(cm)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.heightCm}
             onChange={(e) => setF({ ...f, heightCm: e.target.value })}
           />
         </Field>
         <Field label="目標体重(kg)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             step="0.1"
             value={f.goalWeight}
@@ -134,23 +132,18 @@ export function SettingsModal({
       </div>
       <div className="mt-2">
         <Field label="日常の活動量" hint="運動を除いた普段の活動（通勤・家事など）。維持カロリーの推定に使用">
-          <select
-            className={inputCls}
+          <Select
+            aria-label="日常の活動量"
             value={f.activityLevel}
-            onChange={(e) => setF({ ...f, activityLevel: e.target.value as ActivityLevel })}
-          >
-            {ACTIVITY_LEVELS.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setF({ ...f, activityLevel: v as ActivityLevel })}
+            options={ACTIVITY_LEVELS.map((a) => ({ value: a.id, label: a.label }))}
+          />
         </Field>
       </div>
       <div className="mt-2">
         <Field label="目標期日（いつまでに）" hint="ここから痩せるペースと1日の目標を自動計算">
-          <input
-            className={`${inputCls} appearance-none min-w-0`}
+          <Input
+            className="min-w-0 appearance-none"
             type="date"
             min={tomorrow}
             value={f.targetDate}
@@ -214,9 +207,12 @@ export function SettingsModal({
         </p>
       )}
 
-      <button
-        disabled={!valid}
-        onClick={() => {
+      <Button
+        variant="primary"
+        fullWidth
+        isDisabled={!valid}
+        className="mt-4"
+        onPress={() => {
           mutate((d) => ({
             ...d,
             profile: {
@@ -230,33 +226,34 @@ export function SettingsModal({
           }));
           onClose();
         }}
-        className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
       >
         保存
-      </button>
+      </Button>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <button
-          onClick={() => {
+        <Button
+          variant="outline"
+          fullWidth
+          onPress={() => {
             if (confirm("デモデータで上書きします。よろしいですか？")) {
               mutate(() => demoDB());
               onClose();
             }
           }}
-          className="rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
         >
           デモを再読み込み
-        </button>
-        <button
-          onClick={() => {
+        </Button>
+        <Button
+          variant="danger-soft"
+          fullWidth
+          onPress={() => {
             if (confirm("すべての記録を削除します。よろしいですか？")) {
               mutate(() => defaultDB());
               onClose();
             }
           }}
-          className="rounded-xl border border-rose-200 py-2.5 text-xs font-semibold text-rose-500"
         >
           データを初期化
-        </button>
+        </Button>
       </div>
     </Modal>
   );
