@@ -2,6 +2,7 @@
 
 // ホーム（俯瞰・閲覧専用）: 今日の収支カード ＋ 目標体重までカード。
 // メモ化は React Compiler に委ねるため手動の useMemo は使わない。
+import { useEffect, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -14,6 +15,7 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
+import { Share2 } from "lucide-react";
 import type { DB } from "@/types";
 import { bmrCalc, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
 import {
@@ -24,7 +26,53 @@ import {
   fmtDate,
   daysBetween,
 } from "@/lib/format";
+import { buildShareText, shareSummary, type ShareGoal } from "@/lib/share";
 import { Card, Num, SectionLabel } from "@/components/ui";
+
+/** 今日のサマリーを SNS/友達に共有するボタン（Web Share API、非対応時はコピー）。 */
+function ShareButton({ text }: { text: string }) {
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (tRef.current) clearTimeout(tRef.current); }, []);
+
+  async function onShare() {
+    const result = await shareSummary(text);
+    if (result === "cancelled") return;
+    setFeedback(
+      result === "shared"
+        ? "共有しました"
+        : result === "copied"
+          ? "サマリーをコピーしました"
+          : "共有できませんでした",
+    );
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => setFeedback(null), 2500);
+  }
+
+  return (
+    <>
+      <button
+        onClick={onShare}
+        className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:bg-slate-200"
+        aria-label="今日のサマリーを共有"
+      >
+        <Share2 size={13} />
+        共有
+      </button>
+      {feedback && (
+        <div
+          className="fixed inset-x-0 bottom-20 z-40 mx-auto flex max-w-md justify-center px-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">
+            {feedback}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 interface WeekDatum {
   date: string;
@@ -39,11 +87,13 @@ function Ledger({
   intake,
   weekData,
   recorded,
+  shareText,
 }: {
   burned: number;
   intake: number;
   weekData: WeekDatum[];
   recorded: boolean;
+  shareText: string;
 }) {
   if (!recorded) {
     return (
@@ -78,7 +128,7 @@ function Ledger({
   ];
   return (
     <Card className="p-5">
-      <SectionLabel>今日の収支</SectionLabel>
+      <SectionLabel right={<ShareButton text={shareText} />}>今日の収支</SectionLabel>
       <div className="mt-1 flex items-end gap-1.5">
         <Num className={`text-4xl font-bold ${deficit ? "text-emerald-600" : "text-rose-500"}`}>
           {deficit ? "−" : "+"}
@@ -115,11 +165,11 @@ function Week({ weekData }: { weekData: WeekDatum[] }) {
         <span className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-emerald-500" />
-            赤字
+            消費が多い
           </span>
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-rose-500" />
-            黒字
+            摂取が多い
           </span>
           {anyUnrecorded && (
             <span className="flex items-center gap-1">
@@ -276,7 +326,7 @@ function GoalProgress({ db }: { db: DB }) {
             <span className="text-slate-400">達成ペース</span>
             <span className="tabular-nums">
               <span className="font-bold text-emerald-600">1日 −{dailyNeed.toLocaleString()}kcal</span>
-              <span className="text-slate-400"> の赤字</span>
+              <span className="text-slate-400"> の収支</span>
             </span>
           </div>
         )}
@@ -310,6 +360,27 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     });
   }
 
+  // 共有用サマリー（体重・目標進捗は GoalProgress と同じ算出ロジック）。
+  const sortedW = [...db.weightLog].sort((a, b) => a.date.localeCompare(b.date));
+  let shareGoal: ShareGoal | null = null;
+  if (profile && sortedW.length > 0) {
+    const start = sortedW[0].weight;
+    const cur = sortedW[sortedW.length - 1].weight;
+    shareGoal = {
+      cur,
+      done: Math.max(0, start - cur),
+      toGo: Math.max(0, cur - profile.goalWeight),
+      reached: cur <= profile.goalWeight,
+    };
+  }
+  const shareText = buildShareText({
+    date,
+    balance: burned - meals.kcal,
+    intake: meals.kcal,
+    burned,
+    goal: shareGoal,
+  });
+
   if (!profile) {
     return (
       <div className="px-4 pt-8">
@@ -330,7 +401,13 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
 
   return (
     <div className="space-y-4 px-4 pt-2 pb-4">
-      <Ledger burned={burned} intake={meals.kcal} weekData={balanceData} recorded={recorded} />
+      <Ledger
+        burned={burned}
+        intake={meals.kcal}
+        weekData={balanceData}
+        recorded={recorded}
+        shareText={shareText}
+      />
       <GoalProgress db={db} />
     </div>
   );
