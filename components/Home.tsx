@@ -308,7 +308,7 @@ function GoalProgress({ db }: { db: DB }) {
               />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e2e8f0" }} />
               <ReferenceLine y={goal} stroke="#10b981" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="weight" stroke="#0f172a" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="weight" name="体重" stroke="#0f172a" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
