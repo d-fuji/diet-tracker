@@ -15,7 +15,7 @@ import {
   Cell,
 } from "recharts";
 import type { DB } from "@/types";
-import { bmrCalc, getDay, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
+import { bmrCalc, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
 import {
   KCAL_PER_KG,
   round,
@@ -28,7 +28,9 @@ import { Card, Num, SectionLabel } from "@/components/ui";
 
 interface WeekDatum {
   date: string;
-  bal: number;
+  /** 記録なしの日は null（バーを描かずギャップにする）。 */
+  bal: number | null;
+  recorded: boolean;
 }
 
 /** 今日の収支（大きな収支数値＋摂取/消費2本バー＋直近7日の収支バー）。 */
@@ -36,11 +38,37 @@ function Ledger({
   burned,
   intake,
   weekData,
+  recorded,
 }: {
   burned: number;
   intake: number;
   weekData: WeekDatum[];
+  recorded: boolean;
 }) {
+  if (!recorded) {
+    return (
+      <Card className="p-5">
+        <SectionLabel
+          right={
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+              未記入
+            </span>
+          }
+        >
+          今日の収支
+        </SectionLabel>
+        <div className="mt-1 flex items-end gap-1.5">
+          <Num className="text-4xl font-bold text-slate-300">−−−</Num>
+          <span className="text-sm text-slate-300 mb-1.5">kcal</span>
+        </div>
+        <p className="mt-3 text-[13px] leading-relaxed text-slate-500">
+          まだ記録がありません。食事を記録すると今日の収支が表示されます。
+        </p>
+        <Week weekData={weekData} />
+      </Card>
+    );
+  }
+
   const balance = burned - intake;
   const deficit = balance >= 0;
   const max = Math.max(intake, burned, 1);
@@ -71,44 +99,75 @@ function Ledger({
           </div>
         ))}
       </div>
-      {weekData.length > 1 && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">直近7日の推移</span>
-            <span className="flex items-center gap-2 text-[10px] text-slate-400">
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-emerald-500" />
-                赤字
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-rose-500" />
-                黒字
-              </span>
-            </span>
-          </div>
-          <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weekData} margin={{ top: 8, right: 4, left: -6, bottom: 0 }}>
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 10, fill: "#94a3b8" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <ReferenceLine y={0} stroke="#cbd5e1" />
-                <Bar dataKey="bal" radius={[4, 4, 4, 4]}>
-                  {weekData.map((d, i) => (
-                    <Cell key={i} fill={d.bal >= 0 ? "#10b981" : "#f43f5e"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+      <Week weekData={weekData} />
     </Card>
+  );
+}
+
+/** 直近7日の収支バー。記録なしの日はバーを描かずギャップにして「未記入」を示す。 */
+function Week({ weekData }: { weekData: WeekDatum[] }) {
+  if (weekData.length <= 1) return null;
+  const anyUnrecorded = weekData.some((d) => !d.recorded);
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[11px] text-slate-400">直近7日の推移</span>
+        <span className="flex items-center gap-2 text-[10px] text-slate-400">
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm bg-emerald-500" />
+            赤字
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm bg-rose-500" />
+            黒字
+          </span>
+          {anyUnrecorded && (
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-sm border border-dashed border-slate-300" />
+              未記入
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="h-28">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={weekData} margin={{ top: 8, right: 4, left: -6, bottom: 0 }}>
+            <XAxis
+              dataKey="date"
+              tick={({ x, y, payload, index }) => {
+                const unrecorded = !weekData[index]?.recorded;
+                return (
+                  <text
+                    x={x}
+                    y={Number(y) + 10}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fill={unrecorded ? "#cbd5e1" : "#94a3b8"}
+                  >
+                    {payload.value}
+                  </text>
+                );
+              }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              tickLine={false}
+              axisLine={false}
+              width={40}
+            />
+            <ReferenceLine y={0} stroke="#cbd5e1" />
+            <Bar dataKey="bal" radius={[4, 4, 4, 4]}>
+              {weekData.map((d, i) => (
+                <Cell key={i} fill={(d.bal ?? 0) >= 0 ? "#10b981" : "#f43f5e"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
 
@@ -234,6 +293,7 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
   const bmr = profile && lw ? bmrCalc(profile.sex, profile.age, profile.heightCm, lw) : 0;
   const meals = sumMeals(day);
   const burned = bmr + sumActivities(day);
+  const recorded = hasRecord(day);
 
   const balanceData: WeekDatum[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -242,7 +302,12 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     const w = latestWeight(db, d) ?? lw;
     const b =
       (profile && w ? bmrCalc(profile.sex, profile.age, profile.heightCm, w) : 0) + sumActivities(dy);
-    balanceData.push({ date: fmtDate(d).slice(0, -3), bal: round(b - sumMeals(dy).kcal) });
+    const dayRecorded = hasRecord(dy);
+    balanceData.push({
+      date: fmtDate(d).slice(0, -3),
+      bal: dayRecorded ? round(b - sumMeals(dy).kcal) : null,
+      recorded: dayRecorded,
+    });
   }
 
   if (!profile) {
@@ -265,7 +330,7 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
 
   return (
     <div className="space-y-4 px-4 pt-2 pb-4">
-      <Ledger burned={burned} intake={meals.kcal} weekData={balanceData} />
+      <Ledger burned={burned} intake={meals.kcal} weekData={balanceData} recorded={recorded} />
       <GoalProgress db={db} />
     </div>
   );

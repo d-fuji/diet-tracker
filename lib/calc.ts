@@ -13,6 +13,10 @@ export const emptyDay = (): DayLog => ({ meals: [], activities: [], workouts: []
 
 export const getDay = (db: DB, date: string): DayLog => db.days[date] || emptyDay();
 
+/** その日にユーザー入力があるか（BMRは自動計算なので判定から除外）。 */
+export const hasRecord = (day: DayLog): boolean =>
+  day.meals.length > 0 || day.activities.length > 0 || day.workouts.length > 0;
+
 /** before 指定時はその日以前で最新。未記録なら null。 */
 export function latestWeight(db: DB, before?: string): number | null {
   const log = [...db.weightLog]
