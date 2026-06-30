@@ -3,9 +3,9 @@
 // 設定: プロフィール（性別/年齢/身長/目標体重/目標期日）＋自動算出プレビュー＋デモ/初期化。
 import { useMemo, useState } from "react";
 import { Target } from "lucide-react";
-import type { DB, Sex } from "@/types";
+import type { DB, Sex, ActivityLevel } from "@/types";
 import { bmrCalc, latestWeight, maintenanceKcal } from "@/lib/calc";
-import { KCAL_PER_KG, COLDSTART_FACTOR, n, daysBetween, todayStr, shiftDate, fmtDate } from "@/lib/format";
+import { KCAL_PER_KG, neatFactor, ACTIVITY_LEVELS, n, daysBetween, todayStr, shiftDate, fmtDate } from "@/lib/format";
 import { demoDB, defaultDB } from "@/lib/seed";
 import { Num, Field, Modal, inputCls } from "@/components/ui";
 
@@ -17,6 +17,7 @@ interface ProfileForm {
   heightCm: string;
   goalWeight: string;
   targetDate: string;
+  activityLevel: ActivityLevel;
 }
 
 export function SettingsModal({
@@ -35,15 +36,27 @@ export function SettingsModal({
     heightCm: p ? String(p.heightCm) : "",
     goalWeight: p ? String(p.goalWeight) : "",
     targetDate: p?.targetDate ?? "",
+    activityLevel: p?.activityLevel ?? "normal",
   });
   const lw = latestWeight(db);
-  const m = maintenanceKcal(db);
   const tomorrow = shiftDate(todayStr(), 1);
 
   const preview = useMemo(() => {
     if (!lw || f.age === "" || f.heightCm === "" || f.goalWeight === "") return null;
     const bmr = bmrCalc(f.sex, n(f.age), n(f.heightCm), lw);
-    const maint = m ? m.kcal : Math.round(bmr * COLDSTART_FACTOR);
+    // フォームの内容（活動量含む）を即時プレビューに反映するため、編集中のプロフィールで再計算する。
+    const m = maintenanceKcal({
+      ...db,
+      profile: {
+        sex: f.sex,
+        age: n(f.age),
+        heightCm: n(f.heightCm),
+        goalWeight: n(f.goalWeight),
+        targetDate: f.targetDate || null,
+        activityLevel: f.activityLevel,
+      },
+    });
+    const maint = m ? m.kcal : Math.round(bmr * neatFactor(f.activityLevel));
     const kg = Math.max(0, +(lw - n(f.goalWeight)).toFixed(2));
     const maxDef = Math.max(0, maint - bmr);
     const days = f.targetDate ? daysBetween(todayStr(), f.targetDate) : null;
@@ -77,7 +90,7 @@ export function SettingsModal({
       future,
       kg,
     };
-  }, [f, lw, m]);
+  }, [f, lw, db]);
 
   const valid = f.age !== "" && f.heightCm !== "" && f.goalWeight !== "";
   return (
@@ -117,6 +130,21 @@ export function SettingsModal({
             value={f.goalWeight}
             onChange={(e) => setF({ ...f, goalWeight: e.target.value })}
           />
+        </Field>
+      </div>
+      <div className="mt-2">
+        <Field label="日常の活動量" hint="運動を除いた普段の活動（通勤・家事など）。維持カロリーの推定に使用">
+          <select
+            className={inputCls}
+            value={f.activityLevel}
+            onChange={(e) => setF({ ...f, activityLevel: e.target.value as ActivityLevel })}
+          >
+            {ACTIVITY_LEVELS.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
       <div className="mt-2">
@@ -168,7 +196,7 @@ export function SettingsModal({
             ))}
           </div>
           <p className="mt-1.5 text-[10px] text-emerald-600/80">
-            基礎代謝 {preview.bmr.toLocaleString()}kcal / タンパク質は体重×2g目安
+            基礎代謝 {preview.bmr.toLocaleString()}kcal ×NEAT{neatFactor(f.activityLevel)} ＋実測活動＋食事の熱産生 / タンパク質は体重×2g目安
           </p>
         </div>
       )}
@@ -197,6 +225,7 @@ export function SettingsModal({
               heightCm: n(f.heightCm),
               goalWeight: n(f.goalWeight),
               targetDate: f.targetDate || null,
+              activityLevel: f.activityLevel,
             },
           }));
           onClose();

@@ -71,15 +71,15 @@ describe("maintenanceKcal", () => {
     expect(maintenanceKcal(buildDB({ profile: null, weightLog: [{ date: todayStr(), weight: 75 }] }))).toBeNull();
   });
 
-  it("活動記録が5日未満なら estimate（BMR×1.5）", () => {
+  it("活動記録が5日未満なら estimate（BMR×NEAT＋TEF）", () => {
     const db = buildDB({ weightLog: [{ date: todayStr(), weight: 75 }] });
     const m = maintenanceKcal(db)!;
     expect(m.source).toBe("estimate");
     expect(m.bmr).toBe(1683);
-    expect(m.kcal).toBe(Math.round(1683 * 1.5)); // 2525
+    expect(m.kcal).toBe(Math.round(1683 * 1.2)); // 既定NEAT1.2・食事記録なしでTEF0 → 2020
   });
 
-  it("活動記録が5日以上なら measured（実測平均）", () => {
+  it("活動記録が5日以上なら measured（実測平均：BMR×NEAT＋活動）", () => {
     const days: DB["days"] = {};
     for (let i = 0; i < 5; i++) {
       days[shiftDate(todayStr(), -i)] = day({ activities: [{ id: String(i), label: "歩", kcal: 300 }] });
@@ -88,7 +88,29 @@ describe("maintenanceKcal", () => {
     const m = maintenanceKcal(db)!;
     expect(m.source).toBe("measured");
     expect(m.days).toBe(5);
-    expect(m.kcal).toBe(1683 + 300); // BMR(75) + 活動300
+    expect(m.kcal).toBe(Math.round(1683 * 1.2 + 300)); // BMR(75)×NEAT1.2 + 活動300, 食事なしTEF0 → 2320
+  });
+
+  it("NEAT係数は活動量プロフィールで変わる", () => {
+    const db = buildDB({
+      profile: { ...baseProfile, activityLevel: "high" },
+      weightLog: [{ date: todayStr(), weight: 75 }],
+    });
+    expect(maintenanceKcal(db)!.kcal).toBe(Math.round(1683 * 1.35)); // high=1.35
+  });
+
+  it("TEF: 食事記録があれば摂取×10%が加算される", () => {
+    const db = buildDB({
+      weightLog: [{ date: todayStr(), weight: 75 }],
+      days: {
+        [todayStr()]: day({
+          meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "朝" }],
+        }),
+      },
+    });
+    const m = maintenanceKcal(db)!;
+    expect(m.source).toBe("estimate"); // 活動記録なし
+    expect(m.kcal).toBe(Math.round(1683 * 1.2 + 2000 * 0.1)); // 2020 + 200 = 2220
   });
 });
 
@@ -117,15 +139,16 @@ describe("targetPlan", () => {
 
   it("現実的なペースは赤字を反映し unrealistic=false", () => {
     const db = buildDB({
-      profile: { ...baseProfile, targetDate: shiftDate(todayStr(), 100) },
+      profile: { ...baseProfile, targetDate: shiftDate(todayStr(), 200) },
       weightLog: [{ date: todayStr(), weight: 75 }],
     });
     const plan = targetPlan(db)!;
-    // kgToLose=7, deficit/day = 7*7200/100 = 504, maxDeficit=842
+    // 維持=round(1683×1.2)=2020, maxDeficit=2020-1683=337
+    // kgToLose=7, deficit/day = 7*7200/200 = 252 ≤ 337
     expect(plan.kgToLose).toBe(7);
     expect(plan.unrealistic).toBe(false);
-    expect(plan.dailyDeficit).toBe(504);
-    expect(plan.target).toBe(Math.round(plan.maintenance - 504));
+    expect(plan.dailyDeficit).toBe(252);
+    expect(plan.target).toBe(Math.round(plan.maintenance - 252));
   });
 
   it("無謀ペースは BMR にクランプし unrealistic=true, minDays を提示", () => {
