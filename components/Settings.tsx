@@ -122,7 +122,7 @@ export function SettingsModal({
       <div className="mt-2">
         <Field label="目標期日（いつまでに）" hint="ここから痩せるペースと1日の目標を自動計算">
           <input
-            className={inputCls}
+            className={`${inputCls} appearance-none min-w-0`}
             type="date"
             min={tomorrow}
             value={f.targetDate}
