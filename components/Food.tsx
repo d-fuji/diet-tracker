@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import type { DB, Food, FoodTag, Mutate } from "@/types";
 import { TAGS, n, uid } from "@/lib/format";
-import { Card, Field, Modal, inputCls } from "@/components/ui";
+import { Card, Field, Modal, Button, Input } from "@/components/ui";
 
 /** 入力中は数値が空文字になりうるためフォーム専用のゆるい型。 */
 export interface FoodDraft {
@@ -39,8 +39,7 @@ export function FoodForm({
   return (
     <Modal title={initial?.id ? "食品を編集" : "食品を追加"} onClose={onClose}>
       <Field label="名称（1食分の分量込み）">
-        <input
-          className={inputCls}
+        <Input
           placeholder="例: サラダチキン 1個"
           value={f.name}
           onChange={(e) => setF({ ...f, name: e.target.value })}
@@ -48,32 +47,28 @@ export function FoodForm({
       </Field>
       <div className="mt-2 grid grid-cols-4 gap-2">
         <Field label="kcal">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.kcal}
             onChange={(e) => setF({ ...f, kcal: e.target.value })}
           />
         </Field>
         <Field label="P(g)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.p}
             onChange={(e) => setF({ ...f, p: e.target.value })}
           />
         </Field>
         <Field label="F(g)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.f}
             onChange={(e) => setF({ ...f, f: e.target.value })}
           />
         </Field>
         <Field label="C(g)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             value={f.c}
             onChange={(e) => setF({ ...f, c: e.target.value })}
@@ -96,9 +91,12 @@ export function FoodForm({
           ))}
         </div>
       </div>
-      <button
-        disabled={!valid}
-        onClick={() => {
+      <Button
+        variant="primary"
+        fullWidth
+        isDisabled={!valid}
+        className="mt-4"
+        onPress={() => {
           onSave({
             id: f.id || uid(),
             name: f.name,
@@ -110,10 +108,9 @@ export function FoodForm({
           });
           onClose();
         }}
-        className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
       >
         保存
-      </button>
+      </Button>
     </Modal>
   );
 }
@@ -151,9 +148,9 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
     <div className="pb-4">
       <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur px-4 pt-3 pb-2 space-y-2">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className={`${inputCls} pl-9 mt-0`}
+          <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
+          <Input
+            className="pl-9"
             placeholder="食品を検索"
             value={q}
             onChange={(e) => setQ(e.target.value)}

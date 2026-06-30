@@ -6,7 +6,7 @@ import { Search, Plus, Minus, Trash2, Undo2, Calculator } from "lucide-react";
 import type { DB, Food, Slot, Activity, Mutate, TargetPlan } from "@/types";
 import { bmrCalc, dayTef, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
 import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot, neatFactor } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, MacroRow, inputCls } from "@/components/ui";
+import { Card, Num, SectionLabel, Field, Modal, MacroRow, Button, Input } from "@/components/ui";
 import { FoodForm, type FoodDraft } from "@/components/Food";
 import { DateNav } from "@/components/DateNav";
 
@@ -172,9 +172,9 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
       </div>
 
       <div className="relative mt-2">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          className={`${inputCls} pl-9 mt-0`}
+        <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
+        <Input
+          className="pl-9"
           placeholder={`「${slot}」に追加 — 検索して即記録`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -315,8 +315,7 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
       </div>
       <div className="grid grid-cols-3 gap-2">
         <Field label="時間(分)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             inputMode="numeric"
             value={min}
@@ -324,8 +323,7 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
           />
         </Field>
         <Field label="強度MET" hint="散歩3.0/早歩き4.3">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             step="0.1"
             value={met}
@@ -336,13 +334,15 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
           <span className="text-xs text-slate-400">
             ≒ <Num className="font-semibold text-slate-700">{kcal}</Num> kcal
           </span>
-          <button
-            disabled={!kcal}
-            onClick={() => onApply(kcal)}
-            className="mt-1 rounded-lg bg-slate-900 disabled:opacity-30 px-2 py-1.5 text-xs font-semibold text-white"
+          <Button
+            variant="secondary"
+            size="sm"
+            isDisabled={!kcal}
+            className="mt-1"
+            onPress={() => onApply(kcal)}
           >
             反映
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -370,8 +370,7 @@ function ActivityForm({
         }}
       />
       <Field label="活動名">
-        <input
-          className={inputCls}
+        <Input
           placeholder="ウォーキング / 通勤 / アクティブエネルギー など"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -379,8 +378,7 @@ function ActivityForm({
       </Field>
       <div className="mt-2">
         <Field label="消費kcal">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             inputMode="numeric"
             value={kcal}
@@ -388,16 +386,18 @@ function ActivityForm({
           />
         </Field>
       </div>
-      <button
-        disabled={!label || kcal === ""}
-        onClick={() => {
+      <Button
+        variant="primary"
+        fullWidth
+        isDisabled={!label || kcal === ""}
+        className="mt-4"
+        onPress={() => {
           onAdd({ id: uid(), label, kcal: n(kcal) });
           onClose();
         }}
-        className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
       >
         追加
-      </button>
+      </Button>
     </Modal>
   );
 }
@@ -422,8 +422,7 @@ function WeightCard({
         体重（必須）
       </SectionLabel>
       <div className="mt-2 flex gap-2">
-        <input
-          className={`${inputCls} mt-0`}
+        <Input
           type="number"
           step="0.1"
           inputMode="decimal"
@@ -431,15 +430,16 @@ function WeightCard({
           value={wInput}
           onChange={(e) => setWInput(e.target.value)}
         />
-        <button
-          onClick={() => {
+        <Button
+          variant="secondary"
+          isDisabled={wInput === ""}
+          className="shrink-0"
+          onPress={() => {
             if (wInput !== "") onSave(n(wInput));
           }}
-          disabled={wInput === ""}
-          className="shrink-0 rounded-xl bg-slate-900 disabled:opacity-30 px-4 text-sm font-semibold text-white"
         >
           保存
-        </button>
+        </Button>
       </div>
       {weightDone && <p className="mt-2 text-[11px] text-emerald-600">この日の体重は記録済みです。</p>}
     </Card>

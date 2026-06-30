@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { DB, Workout, Mutate } from "@/types";
 import { getDay, withDay } from "@/lib/calc";
 import { uid, n, round } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, inputCls } from "@/components/ui";
+import { Card, Num, SectionLabel, Field, Modal, Button, Input } from "@/components/ui";
 import { DateNav } from "@/components/DateNav";
 
 function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose: () => void }) {
@@ -18,8 +18,7 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
   return (
     <Modal title="種目を記録" onClose={onClose}>
       <Field label="種目">
-        <input
-          className={inputCls}
+        <Input
           placeholder="ベンチプレス / スクワット など"
           value={ex}
           onChange={(e) => setEx(e.target.value)}
@@ -27,8 +26,7 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
       </Field>
       <div className="mt-2 grid grid-cols-3 gap-2">
         <Field label="重量(kg)">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             inputMode="decimal"
             value={weight}
@@ -36,8 +34,7 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
           />
         </Field>
         <Field label="回数">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             inputMode="numeric"
             value={reps}
@@ -45,8 +42,7 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
           />
         </Field>
         <Field label="セット">
-          <input
-            className={inputCls}
+          <Input
             type="number"
             inputMode="numeric"
             value={sets}
@@ -54,16 +50,18 @@ function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose:
           />
         </Field>
       </div>
-      <button
-        disabled={!valid}
-        onClick={() => {
+      <Button
+        variant="primary"
+        fullWidth
+        isDisabled={!valid}
+        className="mt-4"
+        onPress={() => {
           onAdd({ id: uid(), ex, weight: n(weight), reps: n(reps), sets: n(sets) });
           onClose();
         }}
-        className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
       >
         追加
-      </button>
+      </Button>
     </Modal>
   );
 }
