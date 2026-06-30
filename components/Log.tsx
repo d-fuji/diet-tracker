@@ -4,8 +4,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Search, Plus, Minus, Trash2, Undo2, Calculator } from "lucide-react";
 import type { DB, Food, Slot, Activity, Mutate, TargetPlan } from "@/types";
-import { bmrCalc, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
-import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot } from "@/lib/format";
+import { bmrCalc, dayTef, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
+import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot, neatFactor } from "@/lib/format";
 import { Card, Num, SectionLabel, Field, Modal, MacroRow, inputCls } from "@/components/ui";
 import { FoodForm, type FoodDraft } from "@/components/Food";
 import { DateNav } from "@/components/DateNav";
@@ -471,6 +471,9 @@ export function LogScreen({
   const actCount = day.activities.length;
   const bmrDate = db.profile && lw ? bmrCalc(db.profile.sex, db.profile.age, db.profile.heightCm, lw) : 0;
   const actKcal = sumActivities(day);
+  const restKcal = bmrDate * neatFactor(db.profile?.activityLevel); // 基礎代謝×NEAT（寝てても消費＋日常活動）
+  const tefKcal = dayTef(day); // 食事誘発性熱産生
+  const burnTotal = restKcal + actKcal + tefKcal;
 
   const saveWeight = (weight: number) =>
     mutate((d) => ({
@@ -541,14 +544,18 @@ export function LogScreen({
             >
               活動
             </SectionLabel>
-            <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
-              <span className="text-xs text-slate-500">消費 = 基礎代謝 + 活動</span>
-              <span className="text-xs tabular-nums">
-                <span className="text-slate-400">{round(bmrDate).toLocaleString()} + </span>
-                <span className="font-semibold text-emerald-600">{round(actKcal)}</span>
-                <span className="text-slate-400"> = </span>
-                <span className="text-sm font-bold text-slate-900">{round(bmrDate + actKcal).toLocaleString()}</span>
-              </span>
+            <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">消費カロリー</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums">
+                  {round(burnTotal).toLocaleString()}
+                </span>
+              </div>
+              <div className="mt-1 text-[10px] tabular-nums text-slate-400">
+                基礎代謝×NEAT {round(restKcal).toLocaleString()} ＋ 活動{" "}
+                <span className="font-semibold text-emerald-600">{round(actKcal)}</span> ＋ 食事の熱産生{" "}
+                {round(tefKcal).toLocaleString()}
+              </div>
             </div>
             <div className="mt-2 divide-y divide-slate-100">
               {day.activities.length === 0 && (

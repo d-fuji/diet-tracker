@@ -8,6 +8,7 @@ import {
   targetPlan,
   withDay,
   getDay,
+  dayBurn,
 } from "@/lib/calc";
 import { shiftDate, todayStr } from "@/lib/format";
 import type { DB, DayLog } from "@/types";
@@ -111,6 +112,21 @@ describe("maintenanceKcal", () => {
     const m = maintenanceKcal(db)!;
     expect(m.source).toBe("estimate"); // 活動記録なし
     expect(m.kcal).toBe(Math.round(1683 * 1.2 + 2000 * 0.1)); // 2020 + 200 = 2220
+  });
+});
+
+describe("dayBurn (単日の消費＝維持カロリーの単日版)", () => {
+  it("BMR×NEAT + 実測活動 + その日のTEF", () => {
+    const d = day({
+      activities: [{ id: "1", label: "歩", kcal: 300 }],
+      meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "朝" }],
+    });
+    // BMR(75)=1683 ×NEAT1.2 + 活動300 + TEF(2000×0.1=200)
+    expect(dayBurn(baseProfile, d, 75)).toBeCloseTo(1683 * 1.2 + 300 + 200);
+  });
+
+  it("NEAT係数は活動量で変わる", () => {
+    expect(dayBurn({ ...baseProfile, activityLevel: "high" }, day(), 75)).toBeCloseTo(1683 * 1.35);
   });
 });
 
