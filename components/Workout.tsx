@@ -83,7 +83,7 @@ export function WorkoutScreen({
             </Stat>
             <Stat label="総挙上量">
               <Num className="text-2xl font-bold">{round(totalVol).toLocaleString()}</Num>
-              <span className="text-xs text-slate-400"> kg</span>
+              <span className="text-xs text-muted"> kg</span>
             </Stat>
           </div>
         </Card>
@@ -100,22 +100,22 @@ export function WorkoutScreen({
           </SectionLabel>
           <div className="mt-2">
             {day.workouts.length === 0 && (
-              <p className="py-3 text-xs text-slate-400">この日の筋トレを記録しましょう。</p>
+              <p className="py-3 text-xs text-muted">この日の筋トレを記録しましょう。</p>
             )}
             {day.workouts.map((w, i) => (
               <div key={w.id}>
                 {i > 0 && <Separator />}
                 <div className="flex items-center justify-between py-2.5">
                   <div>
-                    <p className="text-sm font-medium text-slate-800">{w.ex}</p>
-                    <p className="text-[11px] text-slate-400 tabular-nums">
+                    <p className="text-sm font-medium text-foreground">{w.ex}</p>
+                    <p className="text-[11px] text-muted tabular-nums">
                       {w.weight}kg × {w.reps}回 × {w.sets}セット
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Num className="text-xs text-slate-400">{round(w.weight * w.reps * w.sets)}kg</Num>
+                    <Num className="text-xs text-muted">{round(w.weight * w.reps * w.sets)}kg</Num>
                     <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => del(w.id)}>
-                      <Trash2 size={16} className="text-slate-400" />
+                      <Trash2 size={16} className="text-muted" />
                     </Button>
                   </div>
                 </div>

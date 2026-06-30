@@ -48,7 +48,7 @@ export function Num({ children, className = "" }: { children: ReactNode; classNa
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{children}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted">{children}</span>
       {right}
     </div>
   );
@@ -66,9 +66,9 @@ export function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="text-xs font-medium text-muted">{label}</span>
       {children}
-      {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+      {hint && <span className="text-[11px] text-muted">{hint}</span>}
     </div>
   );
 }
@@ -145,9 +145,9 @@ export function Stat({
   accent?: boolean;
 }) {
   return (
-    <div className={`rounded-xl py-2.5 text-center ${accent ? "bg-emerald-50" : "bg-slate-50"}`}>
-      <div className={`text-[11px] ${accent ? "text-emerald-600/90" : "text-slate-400"}`}>{label}</div>
-      <div className={accent ? "text-emerald-700" : "text-slate-700"}>{children}</div>
+    <div className={`rounded-xl py-2.5 text-center ${accent ? "bg-accent-soft" : "bg-default"}`}>
+      <div className={`text-[11px] ${accent ? "text-accent/90" : "text-muted"}`}>{label}</div>
+      <div className={accent ? "text-accent" : "text-foreground"}>{children}</div>
     </div>
   );
 }
@@ -200,14 +200,14 @@ export function MacroRow({
   return (
     <Meter value={val} maxValue={Math.max(target, 1)} className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between">
-        <span className="text-xs font-medium text-slate-500">{label}</span>
+        <span className="text-xs font-medium text-muted">{label}</span>
         <span className="text-xs tabular-nums">
-          <span className={`font-semibold ${over ? "text-rose-500" : "text-slate-900"}`}>{round(val)}</span>
-          <span className="text-slate-400"> / {target}g</span>
+          <span className={`font-semibold ${over ? "text-danger" : "text-foreground"}`}>{round(val)}</span>
+          <span className="text-muted"> / {target}g</span>
         </span>
       </div>
-      <Meter.Track className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <Meter.Fill className={`h-full rounded-full ${over ? "bg-rose-400" : fill}`} />
+      <Meter.Track className="h-1.5 overflow-hidden rounded-full bg-default">
+        <Meter.Fill className={`h-full rounded-full ${over ? "bg-danger" : fill}`} />
       </Meter.Track>
     </Meter>
   );

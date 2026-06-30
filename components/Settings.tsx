@@ -153,12 +153,12 @@ export function SettingsModal({
       </div>
 
       {preview && (
-        <div className="mt-3 rounded-xl bg-emerald-50 p-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+        <div className="mt-3 rounded-xl bg-accent-soft p-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-accent">
             <Target size={14} />
             自動算出
           </div>
-          <div className="mt-2 space-y-1 text-xs text-emerald-900/90">
+          <div className="mt-2 space-y-1 text-xs text-accent/90">
             <div className="flex justify-between">
               <span>維持カロリー{preview.source === "estimate" ? "（初期推定）" : "（実測平均）"}</span>
               <Num className="font-semibold">{preview.maint.toLocaleString()} kcal</Num>
@@ -169,9 +169,9 @@ export function SettingsModal({
                 <Num className="font-semibold">−{preview.def.toLocaleString()} kcal</Num>
               </div>
             )}
-            <div className="flex justify-between border-t border-emerald-200/70 pt-1">
+            <div className="flex justify-between border-t border-accent-soft/70 pt-1">
               <span className="font-semibold">目標カロリー</span>
-              <Num className="font-bold text-emerald-700">{preview.target.toLocaleString()} kcal</Num>
+              <Num className="font-bold text-accent">{preview.target.toLocaleString()} kcal</Num>
             </div>
           </div>
           <div className="mt-2 grid grid-cols-3 gap-1 text-center">
@@ -183,24 +183,24 @@ export function SettingsModal({
               ] as [string, number][]
             ).map(([l, v]) => (
               <div key={l}>
-                <div className="text-[10px] text-emerald-600">{l}</div>
-                <Num className="text-sm font-bold text-emerald-800">{v}g</Num>
+                <div className="text-[10px] text-accent">{l}</div>
+                <Num className="text-sm font-bold text-accent">{v}g</Num>
               </div>
             ))}
           </div>
-          <p className="mt-1.5 text-[10px] text-emerald-600/80">
+          <p className="mt-1.5 text-[10px] text-accent/80">
             基礎代謝 {preview.bmr.toLocaleString()}kcal ×NEAT{neatFactor(f.activityLevel)} ＋実測活動＋食事の熱産生 / タンパク質は体重×2g目安
           </p>
         </div>
       )}
 
       {preview && preview.days != null && preview.days <= 0 && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+        <p className="mt-2 rounded-lg bg-warning/15 px-3 py-2 text-[11px] text-warning">
           目標期日は未来の日付を選んでください。
         </p>
       )}
       {preview && preview.unreal && preview.minDays && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
+        <p className="mt-2 rounded-lg bg-warning/15 px-3 py-2 text-[11px] leading-relaxed text-warning">
           このペースは速すぎます（目標が基礎代謝を下回るため下限で調整中）。現実的な最短は約{preview.minDays}日後、
           <span className="font-semibold"> {fmtDate(shiftDate(todayStr(), preview.minDays)).slice(0, -3)}頃</span>
           です。

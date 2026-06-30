@@ -61,7 +61,7 @@ export function FoodForm({
           </Field>
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-slate-500">タグ</span>
+          <span className="text-xs font-medium text-muted">タグ</span>
           <div className="flex flex-wrap gap-1.5">
             {TAGS.map((t) => (
               <Button
@@ -138,9 +138,9 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
 
   return (
     <div className="pb-4">
-      <div className="sticky top-0 z-10 space-y-2 bg-slate-50/95 px-4 pt-3 pb-2 backdrop-blur">
+      <div className="sticky top-0 z-10 space-y-2 bg-default/95 px-4 pt-3 pb-2 backdrop-blur">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
+          <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted" />
           <Input
             className="pl-9"
             placeholder="食品を検索"
@@ -162,7 +162,7 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
           ))}
         </div>
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-slate-400">並び替え</span>
+          <span className="text-muted">並び替え</span>
           {sorts.map(([k, l]) => (
             <Button
               key={k}
@@ -181,8 +181,8 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
           <Card key={f.id} className="p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-800">{f.name}</p>
-                <p className="mt-0.5 text-[11px] tabular-nums text-slate-400">
+                <p className="text-sm font-medium text-foreground">{f.name}</p>
+                <p className="mt-0.5 text-[11px] tabular-nums text-muted">
                   {f.kcal}kcal · P{f.p} F{f.f} C{f.c}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
@@ -198,19 +198,19 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
               </div>
               <div className="flex shrink-0 gap-0.5">
                 <Button isIconOnly variant="ghost" size="sm" aria-label="編集" onPress={() => setEdit(f)}>
-                  <Pencil size={15} className="text-slate-400" />
+                  <Pencil size={15} className="text-muted" />
                 </Button>
                 <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => del(f.id)}>
-                  <Trash2 size={15} className="text-slate-400" />
+                  <Trash2 size={15} className="text-muted" />
                 </Button>
               </div>
             </div>
           </Card>
         ))}
         {list.length === 0 && (
-          <p className="py-6 text-center text-xs text-slate-400">該当なし。右下の＋で追加できます。</p>
+          <p className="py-6 text-center text-xs text-muted">該当なし。右下の＋で追加できます。</p>
         )}
-        <p className="pt-1 text-center text-[10px] text-slate-300">
+        <p className="pt-1 text-center text-[10px] text-muted">
           数値はサンプル/ユーザー登録です。実際の表示を確認のうえ編集してください。
         </p>
       </div>
@@ -219,7 +219,7 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
         variant="primary"
         size="lg"
         aria-label="食品を追加"
-        className="fixed bottom-24 right-5 z-20 h-14 w-14 rounded-full shadow-lg shadow-emerald-600/30"
+        className="fixed bottom-24 right-5 z-20 h-14 w-14 rounded-full shadow-lg shadow-accent/30"
         onPress={() => setEdit(null)}
       >
         <Plus size={22} />

@@ -37,7 +37,7 @@ export default function App() {
 
   if (!loaded || !db) {
     return (
-      <div className="flex h-screen items-center justify-center gap-2 bg-slate-50 text-sm text-slate-400">
+      <div className="flex h-screen items-center justify-center gap-2 bg-default text-sm text-muted">
         <Spinner size="sm" />
         読み込み中…
       </div>
@@ -45,17 +45,17 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/70 bg-slate-50/95 px-4 py-3 backdrop-blur">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-default text-foreground">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/70 bg-default/95 px-4 py-3 backdrop-blur">
         <h1 className="text-base font-bold tracking-tight">
-          <span className="text-emerald-600">収支</span>ダイエット
+          <span className="text-accent">収支</span>ダイエット
         </h1>
         <Button
           isIconOnly
           variant="ghost"
           size="sm"
           onPress={() => setSettings(true)}
-          className="rounded-full text-slate-400"
+          className="rounded-full text-muted"
           aria-label="設定"
         >
           <Settings size={20} />
@@ -67,7 +67,7 @@ export default function App() {
         {tab === "workout" && <WorkoutScreen db={db} date={date} setDate={setDate} mutate={mutate} />}
         {tab === "food" && <FoodScreen db={db} mutate={mutate} />}
       </main>
-      <nav className="sticky bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <nav className="sticky bottom-0 z-30 grid grid-cols-4 border-t border-border bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -76,7 +76,7 @@ export default function App() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
-                active ? "text-emerald-600" : "text-slate-400"
+                active ? "text-accent" : "text-muted"
               }`}
             >
               <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />

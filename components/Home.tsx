@@ -62,7 +62,7 @@ function ShareButton({ text }: { text: string }) {
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{feedback}</div>
+          <div className="rounded-xl bg-foreground px-4 py-2.5 text-sm text-white shadow-lg">{feedback}</div>
         </div>
       )}
     </>
@@ -96,7 +96,7 @@ function LedgerHeader({
         <Button isIconOnly variant="ghost" size="sm" aria-label="前日" onPress={() => setDate(shiftDate(date, -1))}>
           <ChevronLeft size={16} />
         </Button>
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
         <Button
           isIconOnly
           variant="ghost"
@@ -117,7 +117,7 @@ function LedgerHeader({
         {recorded ? (
           <ShareButton text={shareText} />
         ) : (
-          <Chip size="sm" className="bg-slate-100 text-slate-400">
+          <Chip size="sm" className="bg-default text-muted">
             未記入
           </Chip>
         )}
@@ -150,10 +150,10 @@ function Ledger({
       <Card className="p-5">
         <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
         <div className="mt-1 flex items-end gap-1.5">
-          <Num className="text-4xl font-bold text-slate-300">−−−</Num>
-          <span className="mb-1.5 text-sm text-slate-300">kcal</span>
+          <Num className="text-4xl font-bold text-muted">−−−</Num>
+          <span className="mb-1.5 text-sm text-muted">kcal</span>
         </div>
-        <p className="mt-3 text-[13px] leading-relaxed text-slate-500">
+        <p className="mt-3 text-[13px] leading-relaxed text-muted">
           {isToday
             ? "まだ記録がありません。食事を記録すると今日の収支が表示されます。"
             : "この日の記録はありません。"}
@@ -167,29 +167,29 @@ function Ledger({
   const deficit = balance >= 0;
   const max = Math.max(intake, burned, 1);
   const bars = [
-    { label: "摂取", val: intake, cls: intake > burned ? "bg-rose-400" : "bg-slate-400" },
-    { label: "消費", val: burned, cls: "bg-emerald-500" },
+    { label: "摂取", val: intake, cls: intake > burned ? "bg-danger" : "bg-muted" },
+    { label: "消費", val: burned, cls: "bg-success" },
   ];
   return (
     <Card className="p-5">
       <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
       <div className="mt-1 flex items-end gap-1.5">
-        <Num className={`text-4xl font-bold ${deficit ? "text-emerald-600" : "text-rose-500"}`}>
+        <Num className={`text-4xl font-bold ${deficit ? "text-accent" : "text-danger"}`}>
           {deficit ? "−" : "+"}
           {Math.abs(round(balance)).toLocaleString()}
         </Num>
-        <span className="mb-1.5 text-sm text-slate-400">kcal</span>
+        <span className="mb-1.5 text-sm text-muted">kcal</span>
       </div>
       <div className="mt-4 space-y-2.5">
         {bars.map((b) => (
           <div key={b.label} className="flex items-center gap-2.5">
-            <span className="w-7 shrink-0 text-[11px] font-medium text-slate-500">{b.label}</span>
+            <span className="w-7 shrink-0 text-[11px] font-medium text-muted">{b.label}</span>
             <Meter value={b.val} maxValue={max} className="flex-1">
-              <Meter.Track className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <Meter.Track className="h-2.5 overflow-hidden rounded-full bg-default">
                 <Meter.Fill className={`h-full rounded-full ${b.cls}`} />
               </Meter.Track>
             </Meter>
-            <Num className="w-12 shrink-0 text-right text-xs font-semibold text-slate-700">
+            <Num className="w-12 shrink-0 text-right text-xs font-semibold text-foreground">
               {round(b.val).toLocaleString()}
             </Num>
           </div>
@@ -205,21 +205,21 @@ function Week({ weekData, isToday = true }: { weekData: WeekDatum[]; isToday?: b
   if (weekData.length <= 1) return null;
   const anyUnrecorded = weekData.some((d) => !d.recorded);
   return (
-    <div className="mt-4 border-t border-slate-100 pt-3">
+    <div className="mt-4 border-t border-default pt-3">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11px] text-slate-400">{isToday ? "直近7日の推移" : "この日までの7日"}</span>
-        <span className="flex items-center gap-2 text-[10px] text-slate-400">
+        <span className="text-[11px] text-muted">{isToday ? "直近7日の推移" : "この日までの7日"}</span>
+        <span className="flex items-center gap-2 text-[10px] text-muted">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-sm bg-emerald-500" />
+            <span className="h-2 w-2 rounded-sm bg-success" />
             消費が多い
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-sm bg-rose-500" />
+            <span className="h-2 w-2 rounded-sm bg-danger" />
             摂取が多い
           </span>
           {anyUnrecorded && (
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm border border-dashed border-slate-300" />
+              <span className="h-2 w-2 rounded-sm border border-dashed border-muted" />
               未記入
             </span>
           )}
@@ -297,20 +297,20 @@ function GoalProgress({ db }: { db: DB }) {
     <Card className="p-5">
       <SectionLabel
         right={
-          td ? <span className="text-xs tabular-nums text-slate-400">期日 {fmtDate(td).slice(0, -3)}</span> : null
+          td ? <span className="text-xs tabular-nums text-muted">期日 {fmtDate(td).slice(0, -3)}</span> : null
         }
       >
         目標体重まで
       </SectionLabel>
       <div className="mt-1 flex items-end gap-1.5">
         {reached ? (
-          <Num className="text-3xl font-bold text-emerald-600">達成 🎉</Num>
+          <Num className="text-3xl font-bold text-accent">達成 🎉</Num>
         ) : (
           <>
-            <span className="mb-1.5 text-sm text-slate-400">あと</span>
-            <Num className="text-4xl font-bold text-slate-900">{toGoKg.toFixed(1)}</Num>
-            <span className="mb-1.5 text-sm text-slate-400">kg</span>
-            <span className="mb-1.5 ml-1 text-xs tabular-nums text-slate-400">
+            <span className="mb-1.5 text-sm text-muted">あと</span>
+            <Num className="text-4xl font-bold text-foreground">{toGoKg.toFixed(1)}</Num>
+            <span className="mb-1.5 text-sm text-muted">kg</span>
+            <span className="mb-1.5 ml-1 text-xs tabular-nums text-muted">
               ≈ {remainKcal.toLocaleString()} kcal
             </span>
           </>
@@ -319,15 +319,15 @@ function GoalProgress({ db }: { db: DB }) {
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Stat label="開始">
           <Num className="text-base font-semibold">{start}</Num>
-          <span className="text-[11px] text-slate-400"> kg</span>
+          <span className="text-[11px] text-muted"> kg</span>
         </Stat>
         <Stat label="現在" accent>
           <Num className="text-base font-bold">{cur}</Num>
-          <span className="text-[11px] text-emerald-600/90"> kg</span>
+          <span className="text-[11px] text-accent/90"> kg</span>
         </Stat>
         <Stat label="目標">
           <Num className="text-base font-semibold">{goal}</Num>
-          <span className="text-[11px] text-slate-400"> kg</span>
+          <span className="text-[11px] text-muted"> kg</span>
         </Stat>
       </div>
       {data.length > 1 && (
@@ -350,20 +350,20 @@ function GoalProgress({ db }: { db: DB }) {
           </ResponsiveContainer>
         </div>
       )}
-      <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
+      <div className="mt-4 space-y-1.5 border-t border-default pt-3 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-slate-400">これまでの成果</span>
+          <span className="text-muted">これまでの成果</span>
           <span className="tabular-nums">
-            <span className="font-semibold text-emerald-600">{Math.max(0, done).toFixed(1)} kg</span>
-            <span className="text-slate-400"> ≈ {doneKcal.toLocaleString()} kcal</span>
+            <span className="font-semibold text-accent">{Math.max(0, done).toFixed(1)} kg</span>
+            <span className="text-muted"> ≈ {doneKcal.toLocaleString()} kcal</span>
           </span>
         </div>
         {dailyNeed != null && (
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">達成ペース</span>
+            <span className="text-muted">達成ペース</span>
             <span className="tabular-nums">
-              <span className="font-bold text-emerald-600">1日 −{dailyNeed.toLocaleString()}kcal</span>
-              <span className="text-slate-400"> の収支</span>
+              <span className="font-bold text-accent">1日 −{dailyNeed.toLocaleString()}kcal</span>
+              <span className="text-muted"> の収支</span>
             </span>
           </div>
         )}
@@ -423,7 +423,7 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
     return (
       <div className="px-4 pt-8">
         <Card className="p-6 text-center">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-muted">
             最初にプロフィール（性別・年齢・身長・目標体重）を登録すると、基礎代謝・収支・PFC目標が計算されます。
           </p>
           <Button variant="primary" className="mt-4" onPress={openSettings}>

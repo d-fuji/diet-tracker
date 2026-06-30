@@ -25,7 +25,7 @@ import { DateNav } from "@/components/DateNav";
 /** タブラベルに付ける小さなカウントバッジ。 */
 function TabBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-100 px-1 text-[10px] font-bold text-emerald-700">
+    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-soft px-1 text-[10px] font-bold text-accent">
       {children}
     </span>
   );
@@ -47,7 +47,7 @@ function DailySummary({
       <SectionLabel
         right={
           plan ? (
-            <span className="text-xs tabular-nums text-slate-400">目標 {goalKcal.toLocaleString()}kcal</span>
+            <span className="text-xs tabular-nums text-muted">目標 {goalKcal.toLocaleString()}kcal</span>
           ) : null
         }
       >
@@ -55,13 +55,13 @@ function DailySummary({
       </SectionLabel>
       <div className="mt-1 flex items-end justify-between">
         <div className="flex items-end gap-1.5">
-          <Num className="text-4xl font-bold text-slate-900">{round(intake.kcal).toLocaleString()}</Num>
-          <span className="mb-1.5 text-sm text-slate-400">kcal 摂取</span>
+          <Num className="text-4xl font-bold text-foreground">{round(intake.kcal).toLocaleString()}</Num>
+          <span className="mb-1.5 text-sm text-muted">kcal 摂取</span>
         </div>
         {plan && (
           <div className="text-right">
-            <div className="text-[11px] text-slate-400">{over ? "超過" : "残り"}</div>
-            <Num className={`text-xl font-bold ${over ? "text-rose-500" : "text-emerald-600"}`}>
+            <div className="text-[11px] text-muted">{over ? "超過" : "残り"}</div>
+            <Num className={`text-xl font-bold ${over ? "text-danger" : "text-accent"}`}>
               {over ? "+" : ""}
               {Math.abs(round(remain)).toLocaleString()}
             </Num>
@@ -74,24 +74,24 @@ function DailySummary({
           maxValue={goalKcal || 1}
           className="mt-3 block"
         >
-          <Meter.Track className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <Meter.Fill className={`h-full rounded-full ${over ? "bg-rose-400" : "bg-emerald-500"}`} />
+          <Meter.Track className="h-2 overflow-hidden rounded-full bg-default">
+            <Meter.Fill className={`h-full rounded-full ${over ? "bg-danger" : "bg-success"}`} />
           </Meter.Track>
         </Meter>
       )}
       <div className="mt-4 space-y-2.5">
         {plan ? (
           <>
-            <MacroRow label="タンパク質 P" val={intake.p} target={plan.p} fill="bg-emerald-500" />
-            <MacroRow label="脂質 F" val={intake.f} target={plan.f} fill="bg-amber-400" />
-            <MacroRow label="炭水化物 C" val={intake.c} target={plan.c} fill="bg-sky-400" />
+            <MacroRow label="タンパク質 P" val={intake.p} target={plan.p} fill="bg-success" />
+            <MacroRow label="脂質 F" val={intake.f} target={plan.f} fill="bg-warning" />
+            <MacroRow label="炭水化物 C" val={intake.c} target={plan.c} fill="bg-accent" />
           </>
         ) : (
-          <p className="text-xs text-slate-400">設定でプロフィールを登録するとPFC目標が表示されます。</p>
+          <p className="text-xs text-muted">設定でプロフィールを登録するとPFC目標が表示されます。</p>
         )}
       </div>
       {plan && !plan.hasPlan && !plan.reached && (
-        <p className="mt-3 text-[11px] text-slate-400">
+        <p className="mt-3 text-[11px] text-muted">
           目標期日が未設定のため、目標は維持カロリー基準です。設定で期日を入れると痩せるペースから自動計算されます。
         </p>
       )}
@@ -168,8 +168,8 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
       <SectionLabel
         right={
           <span className="text-xs tabular-nums">
-            <span className="font-semibold text-slate-900">{round(meals.kcal)}</span>
-            <span className="text-slate-400"> kcal</span>
+            <span className="font-semibold text-foreground">{round(meals.kcal)}</span>
+            <span className="text-muted"> kcal</span>
           </span>
         }
       >
@@ -188,7 +188,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
               label: (
                 <span className="flex items-center gap-1">
                   {s}
-                  {sub > 0 && <span className="text-[10px] tabular-nums text-slate-400">{round(sub)}</span>}
+                  {sub > 0 && <span className="text-[10px] tabular-nums text-muted">{round(sub)}</span>}
                 </span>
               ),
             };
@@ -197,7 +197,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
       </div>
 
       <div className="relative mt-3">
-        <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400" />
+        <Search size={16} className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted" />
         <Input
           className="pl-9"
           placeholder={`「${slot}」に追加 — 検索して即記録`}
@@ -220,12 +220,12 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
                 }}
               >
                 <div className="text-left">
-                  <p className="text-sm text-slate-800">{f.name}</p>
-                  <p className="text-[11px] tabular-nums text-slate-400">
+                  <p className="text-sm text-foreground">{f.name}</p>
+                  <p className="text-[11px] tabular-nums text-muted">
                     {f.kcal}kcal · P{f.p} F{f.f} C{f.c}
                   </p>
                 </div>
-                <Plus size={16} className="shrink-0 text-emerald-600" />
+                <Plus size={16} className="shrink-0 text-accent" />
               </Button>
             </div>
           ))}
@@ -233,7 +233,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
           <Button
             variant="ghost"
             fullWidth
-            className="justify-start gap-1.5 rounded-none px-3 py-2.5 text-emerald-700"
+            className="justify-start gap-1.5 rounded-none px-3 py-2.5 text-accent"
             onPress={() => setNewFood({ name: q, kcal: "", p: "", f: "", c: "", tags: [] })}
           >
             <Plus size={15} />「{q}」を新規作成
@@ -252,7 +252,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
               onPress={() => log(f)}
             >
               {shortName(f.name)}
-              <Plus size={13} className="text-emerald-600" />
+              <Plus size={13} className="text-accent" />
             </Button>
           ))}
         </div>
@@ -260,7 +260,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
 
       <div className="mt-3 space-y-3">
         {day.meals.length === 0 && (
-          <p className="py-3 text-xs text-slate-400">上のスロットを選んで、食べたものを記録しましょう。</p>
+          <p className="py-3 text-xs text-muted">上のスロットを選んで、食べたものを記録しましょう。</p>
         )}
         {SLOTS.map((s) => {
           const items = day.meals.filter((m) => mealSlot(m) === s);
@@ -269,8 +269,8 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
           return (
             <div key={s}>
               <div className="flex items-center justify-between pb-1">
-                <span className="text-xs font-semibold text-slate-600">{s}</span>
-                <Num className="text-[11px] text-slate-400">{round(sub)} kcal</Num>
+                <span className="text-xs font-semibold text-muted">{s}</span>
+                <Num className="text-[11px] text-muted">{round(sub)} kcal</Num>
               </div>
               <Separator />
               <div>
@@ -281,9 +281,9 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
                       {idx > 0 && <Separator />}
                       <div className="flex items-center justify-between gap-2 py-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm text-slate-800">{m.name}</p>
-                          <p className="text-[11px] tabular-nums text-slate-400">
-                            <span className="font-medium text-slate-600">{round(m.kcal * qy)}kcal</span>
+                          <p className="truncate text-sm text-foreground">{m.name}</p>
+                          <p className="text-[11px] tabular-nums text-muted">
+                            <span className="font-medium text-muted">{round(m.kcal * qy)}kcal</span>
                             {"  "}P{+(m.p * qy).toFixed(1)} F{+(m.f * qy).toFixed(1)} C{+(m.c * qy).toFixed(1)}
                           </p>
                         </div>
@@ -297,7 +297,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
                           >
                             <Minus size={13} />
                           </Button>
-                          <Num className="w-5 text-center text-sm font-semibold text-slate-700">{qy}</Num>
+                          <Num className="w-5 text-center text-sm font-semibold text-foreground">{qy}</Num>
                           <Button
                             isIconOnly
                             variant="secondary"
@@ -314,7 +314,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
                             aria-label="削除"
                             onPress={() => del(m.id)}
                           >
-                            <Trash2 size={16} className="text-slate-400" />
+                            <Trash2 size={16} className="text-muted" />
                           </Button>
                         </div>
                       </div>
@@ -329,11 +329,11 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
 
       {toast && (
         <div className="fixed inset-x-0 bottom-20 z-40 mx-auto flex max-w-md items-center justify-between gap-3 px-4">
-          <div className="flex w-full items-center justify-between rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">
+          <div className="flex w-full items-center justify-between rounded-xl bg-foreground px-4 py-2.5 text-sm text-white shadow-lg">
             <span className="truncate">
               {toast.slot}に「{shortName(toast.name)}」を追加
             </span>
-            <button onClick={undo} className="flex shrink-0 items-center gap-1 font-semibold text-emerald-300">
+            <button onClick={undo} className="flex shrink-0 items-center gap-1 font-semibold text-accent">
               <Undo2 size={15} />
               取り消す
             </button>
@@ -351,8 +351,8 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
   const [met, setMet] = useState("3.5");
   const kcal = round(n(met) * n(weight ?? 0) * (n(min) / 60));
   return (
-    <div className="mb-3 rounded-xl bg-slate-50 p-3">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+    <div className="mb-3 rounded-xl bg-default p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted">
         <Calculator size={14} /> ウォーキング概算
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -363,8 +363,8 @@ function WalkCalc({ weight, onApply }: { weight: number | null; onApply: (kcal: 
           <Input type="number" step="0.1" value={met} onChange={(e) => setMet(e.target.value)} />
         </Field>
         <div className="flex flex-col justify-end">
-          <span className="text-xs text-slate-400">
-            ≒ <Num className="font-semibold text-slate-700">{kcal}</Num> kcal
+          <span className="text-xs text-muted">
+            ≒ <Num className="font-semibold text-foreground">{kcal}</Num> kcal
           </span>
           <Button variant="secondary" size="sm" isDisabled={!kcal} className="mt-1" onPress={() => onApply(kcal)}>
             反映
@@ -438,7 +438,7 @@ function WeightCard({
   return (
     <Card className="p-4">
       <SectionLabel
-        right={lw != null ? <span className="text-xs tabular-nums text-slate-400">前回 {lw}kg</span> : null}
+        right={lw != null ? <span className="text-xs tabular-nums text-muted">前回 {lw}kg</span> : null}
       >
         体重（必須）
       </SectionLabel>
@@ -462,7 +462,7 @@ function WeightCard({
           保存
         </Button>
       </div>
-      {weightDone && <p className="mt-2 text-[11px] text-emerald-600">この日の体重は記録済みです。</p>}
+      {weightDone && <p className="mt-2 text-[11px] text-accent">この日の体重は記録済みです。</p>}
     </Card>
   );
 }
@@ -552,32 +552,32 @@ export function LogScreen({
             >
               活動
             </SectionLabel>
-            <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2.5">
+            <div className="mt-2 rounded-xl bg-default px-3 py-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">消費カロリー</span>
-                <span className="text-sm font-bold tabular-nums text-slate-900">
+                <span className="text-xs text-muted">消費カロリー</span>
+                <span className="text-sm font-bold tabular-nums text-foreground">
                   {round(burnTotal).toLocaleString()}
                 </span>
               </div>
-              <div className="mt-1 text-[10px] tabular-nums text-slate-400">
+              <div className="mt-1 text-[10px] tabular-nums text-muted">
                 基礎代謝×NEAT {round(restKcal).toLocaleString()} ＋ 活動{" "}
-                <span className="font-semibold text-emerald-600">{round(actKcal)}</span> ＋ 食事の熱産生{" "}
+                <span className="font-semibold text-accent">{round(actKcal)}</span> ＋ 食事の熱産生{" "}
                 {round(tefKcal).toLocaleString()}
               </div>
             </div>
             <div className="mt-2">
               {day.activities.length === 0 && (
-                <p className="py-3 text-xs text-slate-400">基礎代謝に加算される運動・歩行を記録。</p>
+                <p className="py-3 text-xs text-muted">基礎代謝に加算される運動・歩行を記録。</p>
               )}
               {day.activities.map((a, i) => (
                 <div key={a.id}>
                   {i > 0 && <Separator />}
                   <div className="flex items-center justify-between py-2">
-                    <p className="text-sm text-slate-800">{a.label}</p>
+                    <p className="text-sm text-foreground">{a.label}</p>
                     <div className="flex items-center gap-1">
-                      <Num className="text-sm font-semibold text-slate-700">+{a.kcal}</Num>
+                      <Num className="text-sm font-semibold text-foreground">+{a.kcal}</Num>
                       <Button isIconOnly variant="ghost" size="sm" aria-label="削除" onPress={() => delAct(a.id)}>
-                        <Trash2 size={16} className="text-slate-400" />
+                        <Trash2 size={16} className="text-muted" />
                       </Button>
                     </div>
                   </div>

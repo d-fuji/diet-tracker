@@ -7,22 +7,15 @@
   color-scheme: light;
 }
 
-/* HeroUI のアクセント色をアプリのブランド（emerald）に合わせる。
-   HeroUI 既定は青だが、タイトル・グラフ・サマリーが緑なので primary 系も緑へ統一。
-   HeroUI のトークンは @layer base 内なので、レイヤー外のここで上書きすると優先される。 */
-:root,
-.light {
-  --accent: #059669; /* emerald-600 */
-}
-
 html,
 body {
   height: 100%;
 }
 
+/* 背景・本文色は HeroUI のデフォルトテーマトークンに従う。 */
 body {
-  background: #f8fafc; /* slate-50 */
-  color: #0f172a; /* slate-900 */
+  background: var(--background);
+  color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
     "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
   -webkit-tap-highlight-color: transparent;
