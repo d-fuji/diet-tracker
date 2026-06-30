@@ -317,8 +317,8 @@ function GoalProgress({ db }: { db: DB }) {
         <div className="flex items-center justify-between">
           <span className="text-slate-400">これまでの成果</span>
           <span className="tabular-nums">
-            <span className="font-semibold text-emerald-600">−{Math.max(0, done).toFixed(1)}kg</span>
-            <span className="text-slate-400"> ・ 約{doneKcal.toLocaleString()}kcal</span>
+            <span className="font-semibold text-emerald-600">{Math.max(0, done).toFixed(1)} kg</span>
+            <span className="text-slate-400"> ≈ {doneKcal.toLocaleString()} kcal</span>
           </span>
         </div>
         {dailyNeed != null && (
