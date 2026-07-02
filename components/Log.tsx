@@ -98,18 +98,32 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quickList = useMemo(() => {
-    const order: string[] = [];
+    const LIMIT = 12;
+    const foodById = new Map(db.foods.map((f) => [f.id, f]));
+    const seen = new Set<string>();
+    const list: Food[] = [];
+    // 履歴で参照されるが削除済みの食品は seen に入れてスキップする（list には積まない）。
+    const push = (id: string) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      const f = foodById.get(id);
+      if (f) list.push(f);
+    };
+    // 新しい日→古い日、同日内は後に記録したものを優先。12件そろったら打ち切る。
     const dates = Object.keys(db.days).sort((a, b) => b.localeCompare(a));
-    for (const dt of dates)
-      for (const m of [...db.days[dt].meals].reverse())
-        if (m.foodId && !order.includes(m.foodId)) order.push(m.foodId);
-    db.foods.forEach((f) => {
-      if (!order.includes(f.id)) order.push(f.id);
-    });
-    return order
-      .map((id) => db.foods.find((f) => f.id === id))
-      .filter((f): f is Food => Boolean(f))
-      .slice(0, 12);
+    for (const dt of dates) {
+      const { meals } = db.days[dt];
+      for (let i = meals.length - 1; i >= 0 && list.length < LIMIT; i--) {
+        const id = meals[i].foodId;
+        if (id) push(id);
+      }
+      if (list.length >= LIMIT) break;
+    }
+    for (const f of db.foods) {
+      if (list.length >= LIMIT) break;
+      push(f.id);
+    }
+    return list;
   }, [db.days, db.foods]);
 
   const results = useMemo(
