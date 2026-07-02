@@ -3,10 +3,11 @@
 // 記録（入力）: セグメント[食事/体重/活動]。食事はクイック記録、活動はMET電卓付き。
 import { useMemo, useRef, useState } from "react";
 import { Search, Plus, Minus, Trash2, Undo2, Calculator } from "lucide-react";
-import type { DB, Food, Slot, Activity, Mutate, TargetPlan } from "@/types";
+import type { DB, Food, Meal, Slot, Activity, Mutate, TargetPlan } from "@/types";
 import { bmrCalc, dayTef, getDay, latestWeight, sumMeals, sumActivities, targetPlan, withDay } from "@/lib/calc";
-import { SLOTS, uid, n, round, clamp, shortName, slotByTime, mealSlot, neatFactor } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, MacroRow, inputCls } from "@/components/ui";
+import { SLOTS, SLOT_LABELS, neatFactor } from "@/lib/constants";
+import { uid, n, round, clamp, shortName, slotByTime, mealSlot, matchesSearch, fmtDate } from "@/lib/format";
+import { Card, Num, SectionLabel, Field, Modal, MacroRow, ConfirmDialog, inputCls } from "@/components/ui";
 import { FoodForm, type FoodDraft } from "@/components/Food";
 import { DateNav } from "@/components/DateNav";
 
@@ -14,9 +15,13 @@ import { DateNav } from "@/components/DateNav";
 function DailySummary({
   intake,
   plan,
+  date,
+  isToday,
 }: {
   intake: { kcal: number; p: number; f: number; c: number };
   plan: TargetPlan | null;
+  date: string;
+  isToday: boolean;
 }) {
   const goalKcal = plan?.target ?? 0;
   const remain = goalKcal - intake.kcal;
@@ -31,7 +36,7 @@ function DailySummary({
           ) : null
         }
       >
-        今日のサマリー
+        {isToday ? "今日のサマリー" : `${fmtDate(date)}のサマリー`}
       </SectionLabel>
       <div className="mt-1 flex items-end justify-between">
         <div className="flex items-end gap-1.5">
@@ -76,12 +81,19 @@ function DailySummary({
   );
 }
 
-/** クイック記録（スロット切替・インライン検索・よく食べるチップ・Undo）。 */
+/** 数量ステップ。1未満は 0.5（半分だけ食べた）を許可する。 */
+const stepQty = (q: number, delta: 1 | -1): number => {
+  if (delta > 0) return q === 0.5 ? 1 : q + 1;
+  if (q > 1) return q - 1;
+  return 0.5;
+};
+
+/** クイック記録（スロット切替・インライン検索・よく食べるチップ・追加/削除のUndo）。 */
 function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate }) {
   const day = getDay(db, date);
   const [q, setQ] = useState("");
   const [slot, setSlot] = useState<Slot>(slotByTime());
-  const [toast, setToast] = useState<{ name: string; mealId: string; slot: Slot } | null>(null);
+  const [toast, setToast] = useState<{ message: string; undo: () => void } | null>(null);
   const [newFood, setNewFood] = useState<FoodDraft | null>(null);
   const tRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -101,9 +113,15 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
   }, [db.days, db.foods]);
 
   const results = useMemo(
-    () => (q ? db.foods.filter((f) => f.name.toLowerCase().includes(q.toLowerCase())).slice(0, 6) : []),
+    () => (q ? db.foods.filter((f) => matchesSearch(f.name, q)).slice(0, 6) : []),
     [q, db.foods],
   );
+
+  const showToast = (message: string, undo: () => void) => {
+    setToast({ message, undo });
+    if (tRef.current) clearTimeout(tRef.current);
+    tRef.current = setTimeout(() => setToast(null), 4000);
+  };
 
   const log = (food: Food) => {
     const id = uid();
@@ -116,24 +134,29 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
         ],
       })),
     );
-    setToast({ name: food.name, mealId: id, slot });
-    if (tRef.current) clearTimeout(tRef.current);
-    tRef.current = setTimeout(() => setToast(null), 3000);
+    showToast(`${SLOT_LABELS[slot]}に「${shortName(food.name)}」を追加`, () =>
+      mutate((d) => withDay(d, date, (dy) => ({ ...dy, meals: dy.meals.filter((m) => m.id !== id) }))),
+    );
   };
   const undo = () => {
     if (!toast) return;
-    mutate((d) => withDay(d, date, (dy) => ({ ...dy, meals: dy.meals.filter((m) => m.id !== toast.mealId) })));
+    toast.undo();
     setToast(null);
   };
-  const setQty = (id: string, delta: number) =>
+  const setQty = (id: string, delta: 1 | -1) =>
     mutate((d) =>
       withDay(d, date, (dy) => ({
         ...dy,
-        meals: dy.meals.map((m) => (m.id === id ? { ...m, qty: Math.max(1, (m.qty ?? 1) + delta) } : m)),
+        meals: dy.meals.map((m) => (m.id === id ? { ...m, qty: stepQty(m.qty ?? 1, delta) } : m)),
       })),
     );
-  const del = (id: string) =>
-    mutate((d) => withDay(d, date, (dy) => ({ ...dy, meals: dy.meals.filter((m) => m.id !== id) })));
+  // 削除は確認ダイアログではなく Undo で守る（記録のテンポを落とさない）。
+  const del = (meal: Meal) => {
+    mutate((d) => withDay(d, date, (dy) => ({ ...dy, meals: dy.meals.filter((m) => m.id !== meal.id) })));
+    showToast(`「${shortName(meal.name)}」を削除しました`, () =>
+      mutate((d) => withDay(d, date, (dy) => ({ ...dy, meals: [...dy.meals, meal] }))),
+    );
+  };
   const saveNewFood = (food: Food) => {
     mutate((d) => ({ ...d, foods: [...d.foods, food] }));
     log(food);
@@ -164,7 +187,9 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
               onClick={() => setSlot(s)}
               className={`flex-1 rounded-lg py-1.5 text-center transition ${slot === s ? "bg-white shadow-sm" : ""}`}
             >
-              <div className={`text-xs font-semibold ${slot === s ? "text-slate-900" : "text-slate-500"}`}>{s}</div>
+              <div className={`text-xs font-semibold ${slot === s ? "text-slate-900" : "text-slate-500"}`}>
+                {SLOT_LABELS[s]}
+              </div>
               {sub > 0 && <div className="text-[10px] tabular-nums text-slate-400">{round(sub)}</div>}
             </button>
           );
@@ -175,7 +200,7 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           className={`${inputCls} pl-9 mt-0`}
-          placeholder={`「${slot}」に追加 — 検索して即記録`}
+          placeholder={`「${SLOT_LABELS[slot]}」に追加 — 検索して即記録`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -237,14 +262,14 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
           return (
             <div key={s}>
               <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                <span className="text-xs font-semibold text-slate-600">{s}</span>
+                <span className="text-xs font-semibold text-slate-600">{SLOT_LABELS[s]}</span>
                 <Num className="text-[11px] text-slate-400">{round(sub)} kcal</Num>
               </div>
               <div className="divide-y divide-slate-100">
                 {items.map((m) => {
                   const qy = m.qty ?? 1;
                   return (
-                    <div key={m.id} className="flex items-center justify-between gap-2 py-2">
+                    <div key={m.id} className="flex items-center justify-between gap-2 py-1.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-slate-800">{m.name}</p>
                         <p className="text-[11px] tabular-nums text-slate-400">
@@ -252,25 +277,25 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
                           {"  "}P{+(m.p * qy).toFixed(1)} F{+(m.f * qy).toFixed(1)} C{+(m.c * qy).toFixed(1)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => setQty(m.id, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200"
                           aria-label="数量を減らす"
                         >
-                          <Minus size={13} />
+                          <Minus size={14} />
                         </button>
-                        <Num className="w-5 text-center text-sm font-semibold text-slate-700">{qy}</Num>
+                        <Num className="w-7 text-center text-sm font-semibold text-slate-700">{qy}</Num>
                         <button
                           onClick={() => setQty(m.id, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200"
                           aria-label="数量を増やす"
                         >
-                          <Plus size={13} />
+                          <Plus size={14} />
                         </button>
                         <button
-                          onClick={() => del(m.id)}
-                          className="ml-1 text-slate-300 hover:text-rose-500"
+                          onClick={() => del(m)}
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:text-rose-500 active:bg-slate-100"
                           aria-label="削除"
                         >
                           <Trash2 size={16} />
@@ -287,10 +312,12 @@ function QuickMeal({ db, date, mutate }: { db: DB; date: string; mutate: Mutate 
 
       {toast && (
         <div className="fixed inset-x-0 bottom-20 z-40 mx-auto flex max-w-md items-center justify-between gap-3 px-4">
-          <div className="flex w-full items-center justify-between rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">
-            <span className="truncate">
-              {toast.slot}に「{shortName(toast.name)}」を追加
-            </span>
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex w-full items-center justify-between rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg"
+          >
+            <span className="truncate">{toast.message}</span>
             <button onClick={undo} className="flex shrink-0 items-center gap-1 font-semibold text-emerald-300">
               <Undo2 size={15} />
               取り消す
@@ -452,16 +479,19 @@ export function LogScreen({
   db,
   date,
   setDate,
+  today,
   mutate,
 }: {
   db: DB;
   date: string;
   setDate: (d: string) => void;
+  today: string;
   mutate: Mutate;
 }) {
   const day = getDay(db, date);
   const [actOpen, setActOpen] = useState(false);
   const [section, setSection] = useState<Section>("食事");
+  const [delAct, setDelAct] = useState<Activity | null>(null);
   const lw = latestWeight(db, date);
   const wToday = db.weightLog.find((w) => w.date === date)?.weight ?? "";
 
@@ -482,7 +512,7 @@ export function LogScreen({
     }));
   const addAct = (a: Activity) =>
     mutate((d) => withDay(d, date, (dy) => ({ ...dy, activities: [...dy.activities, a] })));
-  const delAct = (id: string) =>
+  const removeAct = (id: string) =>
     mutate((d) => withDay(d, date, (dy) => ({ ...dy, activities: dy.activities.filter((m) => m.id !== id) })));
 
   const TABS_L: { id: Section; badge: string | number | null }[] = [
@@ -493,7 +523,7 @@ export function LogScreen({
 
   return (
     <div className="pb-4">
-      <DateNav date={date} setDate={setDate} />
+      <DateNav date={date} setDate={setDate} today={today} />
       <div className="space-y-4 px-4">
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
           {TABS_L.map((t) => (
@@ -520,7 +550,7 @@ export function LogScreen({
 
         {section === "食事" && (
           <>
-            <DailySummary intake={meals} plan={plan} />
+            <DailySummary intake={meals} plan={plan} date={date} isToday={date === today} />
             <QuickMeal db={db} date={date} mutate={mutate} />
           </>
         )}
@@ -562,13 +592,13 @@ export function LogScreen({
                 <p className="py-3 text-xs text-slate-400">基礎代謝に加算される運動・歩行を記録。</p>
               )}
               {day.activities.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-2">
+                <div key={a.id} className="flex items-center justify-between py-1.5">
                   <p className="text-sm text-slate-800">{a.label}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Num className="text-sm font-semibold text-slate-700">+{a.kcal}</Num>
                     <button
-                      onClick={() => delAct(a.id)}
-                      className="text-slate-300 hover:text-rose-500"
+                      onClick={() => setDelAct(a)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:text-rose-500 active:bg-slate-100"
                       aria-label="削除"
                     >
                       <Trash2 size={16} />
@@ -581,6 +611,14 @@ export function LogScreen({
         )}
       </div>
       {actOpen && <ActivityForm weight={lw} onAdd={addAct} onClose={() => setActOpen(false)} />}
+      {delAct && (
+        <ConfirmDialog
+          title="活動を削除"
+          message={`「${delAct.label}」(+${delAct.kcal}kcal) を削除します。よろしいですか？`}
+          onConfirm={() => removeAct(delAct.id)}
+          onClose={() => setDelAct(null)}
+        />
+      )}
     </div>
   );
 }

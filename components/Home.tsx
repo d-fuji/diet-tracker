@@ -1,7 +1,7 @@
 "use client";
 
 // ホーム（俯瞰・閲覧専用）: 今日の収支カード ＋ 目標体重までカード。
-// メモ化は React Compiler に委ねるため手動の useMemo は使わない。
+// メモ化は React Compiler（next.config.ts で有効化）に委ねるため手動の useMemo は使わない。
 import { useEffect, useRef, useState } from "react";
 import {
   LineChart,
@@ -17,15 +17,9 @@ import {
 } from "recharts";
 import { Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DB } from "@/types";
-import { dayBurn, getDay, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
-import {
-  KCAL_PER_KG,
-  round,
-  shiftDate,
-  todayStr,
-  fmtDate,
-  daysBetween,
-} from "@/lib/format";
+import { dayBurn, getDay, goalSnapshot, hasRecord, latestWeight, sumMeals, sumActivities } from "@/lib/calc";
+import { KCAL_PER_KG } from "@/lib/constants";
+import { round, shiftDate, fmtDate, daysBetween } from "@/lib/format";
 import { buildShareText, shareSummary, type ShareGoal } from "@/lib/share";
 import { Card, Num, SectionLabel } from "@/components/ui";
 
@@ -85,15 +79,17 @@ interface WeekDatum {
 function LedgerHeader({
   date,
   setDate,
+  today,
   recorded,
   shareText,
 }: {
   date: string;
   setDate: (d: string) => void;
+  today: string;
   recorded: boolean;
   shareText: string;
 }) {
-  const isToday = date === todayStr();
+  const isToday = date === today;
   const label = isToday ? "今日の収支" : `${fmtDate(date)}の収支`;
   return (
     <div className="flex items-center justify-between">
@@ -118,7 +114,7 @@ function LedgerHeader({
       <div className="flex items-center gap-2">
         {!isToday && (
           <button
-            onClick={() => setDate(todayStr())}
+            onClick={() => setDate(today)}
             className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:bg-slate-200"
           >
             今日へ
@@ -140,6 +136,7 @@ function LedgerHeader({
 function Ledger({
   date,
   setDate,
+  today,
   burned,
   intake,
   weekData,
@@ -148,25 +145,26 @@ function Ledger({
 }: {
   date: string;
   setDate: (d: string) => void;
+  today: string;
   burned: number;
   intake: number;
   weekData: WeekDatum[];
   recorded: boolean;
   shareText: string;
 }) {
-  const isToday = date === todayStr();
+  const isToday = date === today;
   if (!recorded) {
     return (
       <Card className="p-5">
-        <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
+        <LedgerHeader date={date} setDate={setDate} today={today} recorded={recorded} shareText={shareText} />
         <div className="mt-1 flex items-end gap-1.5">
           <Num className="text-4xl font-bold text-slate-300">−−−</Num>
           <span className="text-sm text-slate-300 mb-1.5">kcal</span>
         </div>
         <p className="mt-3 text-[13px] leading-relaxed text-slate-500">
           {isToday
-            ? "まだ記録がありません。食事を記録すると今日の収支が表示されます。"
-            : "この日の記録はありません。"}
+            ? "まだ食事の記録がありません。食事を記録すると今日の収支が表示されます。"
+            : "この日の食事の記録はありません。"}
         </p>
         <Week weekData={weekData} isToday={isToday} />
       </Card>
@@ -182,7 +180,7 @@ function Ledger({
   ];
   return (
     <Card className="p-5">
-      <LedgerHeader date={date} setDate={setDate} recorded={recorded} shareText={shareText} />
+      <LedgerHeader date={date} setDate={setDate} today={today} recorded={recorded} shareText={shareText} />
       <div className="mt-1 flex items-end gap-1.5">
         <Num className={`text-4xl font-bold ${deficit ? "text-emerald-600" : "text-rose-500"}`}>
           {deficit ? "−" : "+"}
@@ -276,26 +274,22 @@ function Week({ weekData, isToday = true }: { weekData: WeekDatum[]; isToday?: b
 }
 
 /** 目標体重まで（残りkg≈kcal、開始/現在/目標、30日折れ線、フッターに成果と達成ペース）。 */
-function GoalProgress({ db }: { db: DB }) {
-  const sorted = [...db.weightLog].sort((a, b) => a.date.localeCompare(b.date));
-  if (!db.profile || sorted.length === 0) return null;
-  const start = sorted[0].weight;
-  const cur = sorted[sorted.length - 1].weight;
+function GoalProgress({ db, today }: { db: DB; today: string }) {
+  const snap = goalSnapshot(db);
+  if (!db.profile || !snap) return null;
+  const { start, cur, done, toGo: toGoKg, reached } = snap;
   const goal = db.profile.goalWeight;
-  const done = start - cur;
-  const toGo = cur - goal;
-  const reached = cur <= goal;
-  const toGoKg = Math.max(0, toGo);
-  const doneKcal = Math.round(Math.max(0, done) * KCAL_PER_KG);
+  const doneKcal = Math.round(done * KCAL_PER_KG);
   const remainKcal = Math.round(toGoKg * KCAL_PER_KG);
 
   const td = db.profile.targetDate;
   let dailyNeed: number | null = null;
   if (td && !reached && toGoKg > 0) {
-    const daysLeft = daysBetween(todayStr(), td);
+    const daysLeft = daysBetween(today, td);
     if (daysLeft > 0) dailyNeed = Math.round((toGoKg * KCAL_PER_KG) / daysLeft);
   }
 
+  const sorted = [...db.weightLog].sort((a, b) => a.date.localeCompare(b.date));
   const data = sorted.slice(-30).map((w) => ({ date: w.date.slice(5), weight: w.weight }));
   const ws = data.map((d) => d.weight);
   const yMin = data.length ? Math.floor(Math.min(...ws)) - 1 : 0;
@@ -371,7 +365,7 @@ function GoalProgress({ db }: { db: DB }) {
         <div className="flex items-center justify-between">
           <span className="text-slate-400">これまでの成果</span>
           <span className="tabular-nums">
-            <span className="font-semibold text-emerald-600">{Math.max(0, done).toFixed(1)} kg</span>
+            <span className="font-semibold text-emerald-600">{done.toFixed(1)} kg</span>
             <span className="text-slate-400"> ≈ {doneKcal.toLocaleString()} kcal</span>
           </span>
         </div>
@@ -389,9 +383,19 @@ function GoalProgress({ db }: { db: DB }) {
   );
 }
 
-export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => void }) {
-  // 収支カードは過去日も遡れる（閲覧専用）。デフォルトは今日。
-  const [date, setDate] = useState(todayStr());
+export function HomeScreen({
+  db,
+  date,
+  setDate,
+  today,
+  openSettings,
+}: {
+  db: DB;
+  date: string;
+  setDate: (d: string) => void;
+  today: string;
+  openSettings: () => void;
+}) {
   const day = getDay(db, date);
   const lw = latestWeight(db, date);
   const profile = db.profile;
@@ -414,20 +418,10 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
   }
 
   // 共有用サマリー（体重・目標進捗は選択日時点の値で算出して収支と整合させる）。
-  const sortedW = [...db.weightLog]
-    .filter((w) => w.date <= date)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  let shareGoal: ShareGoal | null = null;
-  if (profile && sortedW.length > 0) {
-    const start = sortedW[0].weight;
-    const cur = sortedW[sortedW.length - 1].weight;
-    shareGoal = {
-      cur,
-      done: Math.max(0, start - cur),
-      toGo: Math.max(0, cur - profile.goalWeight),
-      reached: cur <= profile.goalWeight,
-    };
-  }
+  const snap = goalSnapshot(db, date);
+  const shareGoal: ShareGoal | null = snap
+    ? { cur: snap.cur, done: snap.done, toGo: snap.toGo, reached: snap.reached }
+    : null;
   const shareText = buildShareText({
     date,
     balance: burned - meals.kcal,
@@ -459,13 +453,14 @@ export function HomeScreen({ db, openSettings }: { db: DB; openSettings: () => v
       <Ledger
         date={date}
         setDate={setDate}
+        today={today}
         burned={burned}
         intake={meals.kcal}
         weekData={balanceData}
         recorded={recorded}
         shareText={shareText}
       />
-      <GoalProgress db={db} />
+      <GoalProgress db={db} today={today} />
     </div>
   );
 }

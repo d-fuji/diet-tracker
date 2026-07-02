@@ -1,6 +1,7 @@
 // 計算ロジック（HANDOFF §4）。すべて純関数。プロトタイプの式をそのまま仕様とする。
 import type { DB, DayLog, Sex, Profile, Maintenance, TargetPlan } from "@/types";
-import { KCAL_PER_KG, TEF_RATE, neatFactor, daysBetween, todayStr, round } from "@/lib/format";
+import { KCAL_PER_KG, TEF_RATE, neatFactor } from "@/lib/constants";
+import { daysBetween, todayStr, round } from "@/lib/format";
 
 /** 基礎代謝 BMR（Mifflin-St Jeor）。最新体重で計算（痩せれば基礎代謝も下がる）。 */
 export function bmrCalc(sex: Sex, age: number, h: number, w: number): number {
@@ -13,9 +14,12 @@ export const emptyDay = (): DayLog => ({ meals: [], activities: [], workouts: []
 
 export const getDay = (db: DB, date: string): DayLog => db.days[date] || emptyDay();
 
-/** その日にユーザー入力があるか（BMRは自動計算なので判定から除外）。 */
-export const hasRecord = (day: DayLog): boolean =>
-  day.meals.length > 0 || day.activities.length > 0 || day.workouts.length > 0;
+/**
+ * その日の「収支」を表示してよいか＝食事記録があるか。
+ * 摂取の記録がない日に収支を出すと、筋トレや活動だけ記録した日が
+ * 「摂取0の大幅赤字」として誤表示されるため、食事の有無で判定する。
+ */
+export const hasRecord = (day: DayLog): boolean => day.meals.length > 0;
 
 /** before 指定時はその日以前で最新。未記録なら null。 */
 export function latestWeight(db: DB, before?: string): number | null {
@@ -147,6 +151,34 @@ export function targetPlan(db: DB): TargetPlan | null {
     hasPlan,
     unrealistic,
     minDays,
+  };
+}
+
+/** 目標進捗のスナップショット（HANDOFF §4.5）。ホームの表示と共有文面で共用する。 */
+export interface GoalSnapshot {
+  start: number; // 最古の記録体重
+  cur: number; // upto 時点の最新体重
+  done: number; // 開始からの減量 kg（>=0 にクランプ）
+  toGo: number; // 目標まで kg（>=0 にクランプ）
+  reached: boolean;
+}
+
+/** upto 指定時はその日以前の体重ログで進捗を出す。profile か体重が無ければ null。 */
+export function goalSnapshot(db: DB, upto?: string): GoalSnapshot | null {
+  const p = db.profile;
+  if (!p) return null;
+  const log = [...db.weightLog]
+    .filter((w) => !upto || w.date <= upto)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (log.length === 0) return null;
+  const start = log[0].weight;
+  const cur = log[log.length - 1].weight;
+  return {
+    start,
+    cur,
+    done: Math.max(0, start - cur),
+    toGo: Math.max(0, cur - p.goalWeight),
+    reached: cur <= p.goalWeight,
   };
 }
 

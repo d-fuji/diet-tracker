@@ -31,7 +31,7 @@ export const defaultDB = (): DB => ({
 export function demoDB(): DB {
   const foods = makeSeedFoods();
   const F = (nm: string): Food => foods.find((f) => f.name.startsWith(nm))!;
-  const meal = (f: Food, qty = 1, slot: Slot = "間食"): Meal => ({
+  const meal = (f: Food, qty = 1, slot: Slot = "snack"): Meal => ({
     id: uid(),
     foodId: f.id,
     name: f.name,
@@ -66,14 +66,14 @@ export function demoDB(): DB {
   for (let i = 6; i >= 0; i--) {
     const dt = shiftDate(todayStr(), -i);
     const cheat = i === 2;
-    const meals: Meal[] = [meal(prot, 1, "朝"), meal(i % 2 ? oat : yog, 1, "朝")];
+    const meals: Meal[] = [meal(prot, 1, "breakfast"), meal(i % 2 ? oat : yog, 1, "breakfast")];
     if (i !== 0) {
-      meals.push(meal(onigiri, 1, "昼"));
-      meals.push(i % 2 ? meal(chick, 1, "昼") : meal(mune, 2, "昼"));
-      meals.push(cheat ? meal(gyudon, 1, "夜") : meal(fish, 1, "夜"));
-      meals.push(i % 3 ? meal(almond, 1, "間食") : meal(choco, 2, "間食"));
+      meals.push(meal(onigiri, 1, "lunch"));
+      meals.push(i % 2 ? meal(chick, 1, "lunch") : meal(mune, 2, "lunch"));
+      meals.push(cheat ? meal(gyudon, 1, "dinner") : meal(fish, 1, "dinner"));
+      meals.push(i % 3 ? meal(almond, 1, "snack") : meal(choco, 2, "snack"));
     } else {
-      meals.push(meal(onigiri, 1, "昼"), meal(chick, 1, "昼"));
+      meals.push(meal(onigiri, 1, "lunch"), meal(chick, 1, "lunch"));
     }
     const activities = [{ id: uid(), label: "ウォーキング", kcal: 200 + (i % 3) * 30 }];
     if (i % 2 === 0 && i !== 0) activities.push({ id: uid(), label: "通勤・移動", kcal: 120 });

@@ -18,10 +18,11 @@ export const metadata: Metadata = {
   },
 };
 
+// maximumScale は指定しない: ピンチズーム禁止はアクセシビリティ違反（WCAG 1.4.4）。
+// iOS のフォーカス時自動ズームは input の font-size を 16px 以上にして防ぐ（components/ui.tsx の inputCls）。
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: "#f8fafc",
 };

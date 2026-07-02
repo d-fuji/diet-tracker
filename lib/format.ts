@@ -1,47 +1,12 @@
-// 日付・数値の純粋ヘルパーと定数（プロトタイプから忠実に移植）。
-import type { Slot, Meal, FoodTag, ActivityLevel } from "@/types";
+// 日付・数値・文字列の純粋ヘルパー。ドメイン定数は lib/constants.ts に置く。
+import type { Slot, Meal } from "@/types";
+import { SLOTS } from "@/lib/constants";
 
-/** 体脂肪 1kg あたりに蓄えられる概算 kcal */
-export const KCAL_PER_KG = 7200;
-
-/**
- * NEAT係数（日常の非運動性活動）。基礎代謝に掛けて「寝てても消費する分＋無意識の活動」を表す。
- * 記録した運動（activities）は別途上乗せするので、ここは運動を除いた日常活動だけを控えめに表す。
- */
-export const NEAT_FACTORS: Record<ActivityLevel, number> = {
-  low: 1.1, // 座り仕事中心・移動少なめ
-  normal: 1.2, // 通勤あり・そこそこ歩く（既定）
-  high: 1.35, // 立ち仕事・よく動く
-  veryhigh: 1.5, // 力仕事
-};
-
-export const ACTIVITY_LEVELS: { id: ActivityLevel; label: string }[] = [
-  { id: "low", label: "座り仕事中心" },
-  { id: "normal", label: "ふつう" },
-  { id: "high", label: "立ち仕事・よく動く" },
-  { id: "veryhigh", label: "力仕事" },
-];
-
-/** 食事誘発性熱産生（TEF/DIT）。摂取kcalの概ね10%が消化に使われる。 */
-export const TEF_RATE = 0.1;
-
-/** activityLevel → NEAT係数。未設定は "normal"(1.2)。 */
-export const neatFactor = (level?: ActivityLevel): number => NEAT_FACTORS[level ?? "normal"] ?? NEAT_FACTORS.normal;
-
-export const SLOTS: Slot[] = ["朝", "昼", "夜", "間食"];
-
-export const TAGS: { id: FoodTag; label: string; cls: string }[] = [
-  { id: "diet", label: "ダイエット向け", cls: "bg-emerald-100 text-emerald-700" },
-  { id: "conveni", label: "コンビニ", cls: "bg-sky-100 text-sky-700" },
-  { id: "eatout", label: "外食", cls: "bg-amber-100 text-amber-700" },
-  { id: "sweets", label: "お菓子", cls: "bg-rose-100 text-rose-700" },
-];
-
-/** 衝突しにくい ID。レンダリング中ではなくイベント時/マウント後に呼ぶ前提。 */
+/** 衝突しにくい ID（UUID v4）。レンダリング中ではなくイベント時/マウント後に呼ぶ前提。 */
 export const uid = (): string =>
   typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.random().toString(36).slice(2, 10);
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
 export const todayStr = (): string => {
   const d = new Date();
@@ -74,12 +39,27 @@ export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo,
 /** 「サラダチキン 1個」→「サラダチキン」。チップの省スペース表示用。 */
 export const shortName = (s: string): string => s.replace(/\s?\d+(個|本|杯|枚|g)$/, "");
 
-export const slotByTime = (): Slot => {
-  const h = new Date().getHours();
-  if (h < 11) return "朝";
-  if (h < 16) return "昼";
-  if (h < 21) return "夜";
-  return "間食";
+/**
+ * 食品検索用の正規化。大小文字・全角半角（NFKC）を吸収し、カタカナはひらがなに寄せる。
+ * 「さらだちきん」→「サラダチキン」がヒットするように、query と対象名の両方に適用する。
+ */
+export const normalizeSearch = (s: string): string =>
+  s
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+    .replace(/\s+/g, "");
+
+/** 正規化つき部分一致。 */
+export const matchesSearch = (name: string, query: string): boolean =>
+  normalizeSearch(name).includes(normalizeSearch(query));
+
+export const slotByTime = (now: Date = new Date()): Slot => {
+  const h = now.getHours();
+  if (h < 11) return "breakfast";
+  if (h < 16) return "lunch";
+  if (h < 21) return "dinner";
+  return "snack";
 };
 
-export const mealSlot = (m: Meal): Slot => (SLOTS.includes(m.slot) ? m.slot : "間食");
+export const mealSlot = (m: Meal): Slot => (SLOTS.includes(m.slot) ? m.slot : "snack");

@@ -4,8 +4,9 @@
 import { useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import type { DB, Food, FoodTag, Mutate } from "@/types";
-import { TAGS, n, uid } from "@/lib/format";
-import { Card, Field, Modal, inputCls } from "@/components/ui";
+import { TAGS } from "@/lib/constants";
+import { n, uid, matchesSearch } from "@/lib/format";
+import { Card, Field, Modal, ConfirmDialog, inputCls } from "@/components/ui";
 
 /** 入力中は数値が空文字になりうるためフォーム専用のゆるい型。 */
 export interface FoodDraft {
@@ -127,9 +128,10 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
   const [sort, setSort] = useState<SortKey>("name");
   // undefined = 閉じている / null = 新規追加 / Food = 編集
   const [edit, setEdit] = useState<Food | null | undefined>(undefined);
+  const [delTarget, setDelTarget] = useState<Food | null>(null);
 
   const list = useMemo(() => {
-    let arr = db.foods.filter((f) => f.name.toLowerCase().includes(q.toLowerCase()));
+    let arr = db.foods.filter((f) => matchesSearch(f.name, q));
     if (filter !== "all") arr = arr.filter((f) => f.tags.includes(filter));
     if (sort === "kcal") arr = [...arr].sort((a, b) => a.kcal - b.kcal);
     else if (sort === "pratio") arr = [...arr].sort((a, b) => b.p / (b.kcal || 1) - a.p / (a.kcal || 1));
@@ -146,6 +148,7 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
       };
     });
   const del = (id: string) => mutate((d) => ({ ...d, foods: d.foods.filter((f) => f.id !== id) }));
+  // 記録済みの食事（過去日の meals）は食品の単価をコピー済みなので、食品を消しても影響しない。
 
   return (
     <div className="pb-4">
@@ -216,14 +219,14 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
               <div className="flex shrink-0 gap-1">
                 <button
                   onClick={() => setEdit(f)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
                   aria-label="編集"
                 >
                   <Pencil size={15} />
                 </button>
                 <button
-                  onClick={() => del(f.id)}
-                  className="rounded-lg p-1.5 text-slate-300 hover:text-rose-500 hover:bg-slate-100"
+                  onClick={() => setDelTarget(f)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-slate-100"
                   aria-label="削除"
                 >
                   <Trash2 size={15} />
@@ -247,6 +250,14 @@ export function FoodScreen({ db, mutate }: { db: DB; mutate: Mutate }) {
         <Plus size={22} />
       </button>
       {edit !== undefined && <FoodForm initial={edit} onSave={save} onClose={() => setEdit(undefined)} />}
+      {delTarget && (
+        <ConfirmDialog
+          title="食品を削除"
+          message={`「${delTarget.name}」を食品データベースから削除します。過去の食事記録はそのまま残ります。`}
+          onConfirm={() => del(delTarget.id)}
+          onClose={() => setDelTarget(null)}
+        />
+      )}
     </div>
   );
 }

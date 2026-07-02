@@ -3,11 +3,12 @@
 // 設定: プロフィール（性別/年齢/身長/目標体重/目標期日）＋自動算出プレビュー＋デモ/初期化。
 import { useMemo, useState } from "react";
 import { Target } from "lucide-react";
-import type { DB, Sex, ActivityLevel } from "@/types";
-import { bmrCalc, latestWeight, maintenanceKcal } from "@/lib/calc";
-import { KCAL_PER_KG, neatFactor, ACTIVITY_LEVELS, n, daysBetween, todayStr, shiftDate, fmtDate } from "@/lib/format";
+import type { DB, Sex, Profile, ActivityLevel } from "@/types";
+import { latestWeight, targetPlan } from "@/lib/calc";
+import { neatFactor, ACTIVITY_LEVELS } from "@/lib/constants";
+import { n, shiftDate, fmtDate } from "@/lib/format";
 import { demoDB, defaultDB } from "@/lib/seed";
-import { Num, Field, Modal, inputCls } from "@/components/ui";
+import { Num, Field, Modal, ConfirmDialog, inputCls } from "@/components/ui";
 
 type Mutate = (fn: (prev: DB) => DB) => void;
 
@@ -20,13 +21,17 @@ interface ProfileForm {
   activityLevel: ActivityLevel;
 }
 
+type ConfirmKind = "demo" | "reset" | null;
+
 export function SettingsModal({
   db,
   mutate,
+  today,
   onClose,
 }: {
   db: DB;
   mutate: Mutate;
+  today: string;
   onClose: () => void;
 }) {
   const p = db.profile;
@@ -38,61 +43,30 @@ export function SettingsModal({
     targetDate: p?.targetDate ?? "",
     activityLevel: p?.activityLevel ?? "normal",
   });
+  const [confirm, setConfirm] = useState<ConfirmKind>(null);
   const lw = latestWeight(db);
-  const tomorrow = shiftDate(todayStr(), 1);
+  const tomorrow = shiftDate(today, 1);
 
-  const preview = useMemo(() => {
-    if (!lw || f.age === "" || f.heightCm === "" || f.goalWeight === "") return null;
-    const bmr = bmrCalc(f.sex, n(f.age), n(f.heightCm), lw);
-    // フォームの内容（活動量含む）を即時プレビューに反映するため、編集中のプロフィールで再計算する。
-    const m = maintenanceKcal({
-      ...db,
-      profile: {
+  const valid = f.age !== "" && f.heightCm !== "" && f.goalWeight !== "";
+  const draftProfile: Profile | null = valid
+    ? {
         sex: f.sex,
         age: n(f.age),
         heightCm: n(f.heightCm),
         goalWeight: n(f.goalWeight),
         targetDate: f.targetDate || null,
         activityLevel: f.activityLevel,
-      },
-    });
-    const maint = m ? m.kcal : Math.round(bmr * neatFactor(f.activityLevel));
-    const kg = Math.max(0, +(lw - n(f.goalWeight)).toFixed(2));
-    const maxDef = Math.max(0, maint - bmr);
-    const days = f.targetDate ? daysBetween(todayStr(), f.targetDate) : null;
-    let def = 0;
-    let unreal = false;
-    const future = days == null || days > 0;
-    if (days && days > 0 && kg > 0) {
-      def = (kg * KCAL_PER_KG) / days;
-      if (def > maxDef) {
-        unreal = true;
-        def = maxDef;
       }
-    }
-    const target = Math.round(Math.max(maint - def, bmr));
-    const minDays = kg > 0 && maxDef > 0 ? Math.ceil((kg * KCAL_PER_KG) / maxDef) : null;
-    const pro = Math.round(lw * 2.0);
-    const fat = Math.round((target * 0.25) / 9);
-    const carb = Math.max(0, Math.round((target - pro * 4 - fat * 9) / 4));
-    return {
-      bmr,
-      maint,
-      source: m ? m.source : ("estimate" as const),
-      target,
-      def: Math.round(def),
-      pro,
-      fat,
-      carb,
-      unreal,
-      minDays,
-      days,
-      future,
-      kg,
-    };
-  }, [f, lw, db]);
+    : null;
 
-  const valid = f.age !== "" && f.heightCm !== "" && f.goalWeight !== "";
+  // プレビューは lib/calc.ts の targetPlan をそのまま使う（式の二重定義をしない）。
+  // フォームの内容（活動量含む）を即時反映するため、編集中のプロフィールで再計算する。
+  const preview = useMemo(
+    () => (draftProfile ? targetPlan({ ...db, profile: draftProfile }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [f, lw, db],
+  );
+
   return (
     <Modal title="プロフィール・目標設定" onClose={onClose}>
       <div className="grid grid-cols-2 gap-2">
@@ -159,6 +133,12 @@ export function SettingsModal({
         </Field>
       </div>
 
+      {valid && !lw && (
+        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          維持カロリー・目標カロリーの自動算出には体重の記録が必要です。保存後、記録タブの「体重」で今日の体重を保存してください。
+        </p>
+      )}
+
       {preview && (
         <div className="mt-3 rounded-xl bg-emerald-50 p-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
@@ -168,12 +148,12 @@ export function SettingsModal({
           <div className="mt-2 space-y-1 text-xs text-emerald-900/90">
             <div className="flex justify-between">
               <span>維持カロリー{preview.source === "estimate" ? "（初期推定）" : "（実測平均）"}</span>
-              <Num className="font-semibold">{preview.maint.toLocaleString()} kcal</Num>
+              <Num className="font-semibold">{preview.maintenance.toLocaleString()} kcal</Num>
             </div>
-            {preview.days && preview.days > 0 && preview.kg > 0 && (
+            {preview.hasPlan && (
               <div className="flex justify-between">
                 <span>1日の収支（ペース）</span>
-                <Num className="font-semibold">−{preview.def.toLocaleString()} kcal</Num>
+                <Num className="font-semibold">−{preview.dailyDeficit.toLocaleString()} kcal</Num>
               </div>
             )}
             <div className="flex justify-between border-t border-emerald-200/70 pt-1">
@@ -184,9 +164,9 @@ export function SettingsModal({
           <div className="mt-2 grid grid-cols-3 gap-1 text-center">
             {(
               [
-                ["P", preview.pro],
-                ["F", preview.fat],
-                ["C", preview.carb],
+                ["P", preview.p],
+                ["F", preview.f],
+                ["C", preview.c],
               ] as [string, number][]
             ).map(([l, v]) => (
               <div key={l}>
@@ -206,10 +186,10 @@ export function SettingsModal({
           目標期日は未来の日付を選んでください。
         </p>
       )}
-      {preview && preview.unreal && preview.minDays && (
+      {preview && preview.unrealistic && preview.minDays && (
         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
           このペースは速すぎます（目標が基礎代謝を下回るため下限で調整中）。現実的な最短は約{preview.minDays}日後、
-          <span className="font-semibold"> {fmtDate(shiftDate(todayStr(), preview.minDays)).slice(0, -3)}頃</span>
+          <span className="font-semibold"> {fmtDate(shiftDate(today, preview.minDays)).slice(0, -3)}頃</span>
           です。
         </p>
       )}
@@ -217,17 +197,8 @@ export function SettingsModal({
       <button
         disabled={!valid}
         onClick={() => {
-          mutate((d) => ({
-            ...d,
-            profile: {
-              sex: f.sex,
-              age: n(f.age),
-              heightCm: n(f.heightCm),
-              goalWeight: n(f.goalWeight),
-              targetDate: f.targetDate || null,
-              activityLevel: f.activityLevel,
-            },
-          }));
+          if (!draftProfile) return;
+          mutate((d) => ({ ...d, profile: draftProfile }));
           onClose();
         }}
         className="mt-4 w-full rounded-xl bg-emerald-600 disabled:opacity-30 py-3 text-sm font-semibold text-white"
@@ -236,28 +207,42 @@ export function SettingsModal({
       </button>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button
-          onClick={() => {
-            if (confirm("デモデータで上書きします。よろしいですか？")) {
-              mutate(() => demoDB());
-              onClose();
-            }
-          }}
+          onClick={() => setConfirm("demo")}
           className="rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
         >
-          デモを再読み込み
+          デモデータを読み込む
         </button>
         <button
-          onClick={() => {
-            if (confirm("すべての記録を削除します。よろしいですか？")) {
-              mutate(() => defaultDB());
-              onClose();
-            }
-          }}
+          onClick={() => setConfirm("reset")}
           className="rounded-xl border border-rose-200 py-2.5 text-xs font-semibold text-rose-500"
         >
           データを初期化
         </button>
       </div>
+      {confirm === "demo" && (
+        <ConfirmDialog
+          title="デモデータを読み込む"
+          message="現在の記録をすべてデモデータで上書きします。この操作は取り消せません。よろしいですか？"
+          confirmLabel="上書きする"
+          onConfirm={() => {
+            mutate(() => demoDB());
+            onClose();
+          }}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {confirm === "reset" && (
+        <ConfirmDialog
+          title="データを初期化"
+          message="すべての記録（食事・体重・活動・筋トレ・プロフィール）を削除します。この操作は取り消せません。よろしいですか？"
+          confirmLabel="初期化する"
+          onConfirm={() => {
+            mutate(() => defaultDB());
+            onClose();
+          }}
+          onClose={() => setConfirm(null)}
+        />
+      )}
     </Modal>
   );
 }

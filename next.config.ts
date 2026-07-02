@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 手動の useMemo/useCallback を省く前提（コンポーネントのコメント参照）なので、
+  // React Compiler による自動メモ化を有効にする。babel-plugin-react-compiler が必要。
+  reactCompiler: true,
   async headers() {
     return [
       {
