@@ -1,7 +1,8 @@
 // データモデル（HANDOFF §3 準拠）。プロトタイプの `db` オブジェクトをそのまま型に落とす。
 
 export type Sex = "male" | "female";
-export type Slot = "朝" | "昼" | "夜" | "間食";
+/** 食事スロット。永続データには言語非依存のキーを保存し、表示名は SLOT_LABELS（lib/constants.ts）で引く。 */
+export type Slot = "breakfast" | "lunch" | "dinner" | "snack";
 export type FoodTag = "diet" | "conveni" | "eatout" | "sweets";
 
 /** 日常の活動量（運動を除く）。NEAT係数のマッピングに使う。 */

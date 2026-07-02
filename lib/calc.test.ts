@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   bmrCalc,
+  goalSnapshot,
+  hasRecord,
   latestWeight,
   sumMeals,
   sumActivities,
@@ -54,8 +56,8 @@ describe("sumMeals / sumActivities", () => {
   it("qty を掛けて合計", () => {
     const d = day({
       meals: [
-        { id: "1", name: "a", qty: 2, kcal: 100, p: 10, f: 5, c: 20, slot: "朝" },
-        { id: "2", name: "b", qty: 1, kcal: 50, p: 4, f: 1, c: 8, slot: "昼" },
+        { id: "1", name: "a", qty: 2, kcal: 100, p: 10, f: 5, c: 20, slot: "breakfast" },
+        { id: "2", name: "b", qty: 1, kcal: 50, p: 4, f: 1, c: 8, slot: "lunch" },
       ],
     });
     expect(sumMeals(d)).toEqual({ kcal: 250, p: 24, f: 11, c: 48 });
@@ -105,7 +107,7 @@ describe("maintenanceKcal", () => {
       weightLog: [{ date: todayStr(), weight: 75 }],
       days: {
         [todayStr()]: day({
-          meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "朝" }],
+          meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "breakfast" }],
         }),
       },
     });
@@ -119,7 +121,7 @@ describe("dayBurn (単日の消費＝維持カロリーの単日版)", () => {
   it("BMR×NEAT + 実測活動 + その日のTEF", () => {
     const d = day({
       activities: [{ id: "1", label: "歩", kcal: 300 }],
-      meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "朝" }],
+      meals: [{ id: "1", name: "x", qty: 1, kcal: 2000, p: 0, f: 0, c: 0, slot: "breakfast" }],
     });
     // BMR(75)=1683 ×NEAT1.2 + 活動300 + TEF(2000×0.1=200)
     expect(dayBurn(baseProfile, d, 75)).toBeCloseTo(1683 * 1.2 + 300 + 200);
@@ -188,6 +190,57 @@ describe("targetPlan", () => {
     expect(plan.p).toBe(150);
     expect(plan.f).toBe(Math.round((plan.target * 0.25) / 9));
     expect(plan.c).toBe(Math.max(0, Math.round((plan.target - plan.p * 4 - plan.f * 9) / 4)));
+  });
+});
+
+describe("hasRecord（収支を表示してよいか）", () => {
+  const meal = { id: "1", name: "x", qty: 1, kcal: 100, p: 0, f: 0, c: 0, slot: "breakfast" as const };
+  it("食事があれば true", () => {
+    expect(hasRecord(day({ meals: [meal] }))).toBe(true);
+  });
+  it("活動・筋トレだけの日は false（摂取0の大幅赤字として誤表示しない）", () => {
+    expect(hasRecord(day({ activities: [{ id: "1", label: "歩", kcal: 200 }] }))).toBe(false);
+    expect(hasRecord(day({ workouts: [{ id: "1", ex: "BP", weight: 60, reps: 8, sets: 3 }] }))).toBe(false);
+    expect(hasRecord(day())).toBe(false);
+  });
+});
+
+describe("goalSnapshot", () => {
+  const db = buildDB({
+    weightLog: [
+      { date: "2026-06-01", weight: 77 },
+      { date: "2026-06-15", weight: 75 },
+      { date: "2026-06-30", weight: 73 },
+    ],
+  });
+  it("開始=最古 / 現在=最新 / done・toGo を算出", () => {
+    const s = goalSnapshot(db)!;
+    expect(s).toEqual({ start: 77, cur: 73, done: 4, toGo: 5, reached: false });
+  });
+  it("upto 指定でその日時点の進捗になる", () => {
+    const s = goalSnapshot(db, "2026-06-20")!;
+    expect(s.cur).toBe(75);
+    expect(s.done).toBe(2);
+  });
+  it("達成済みは reached=true, toGo=0", () => {
+    const s = goalSnapshot(buildDB({ weightLog: [{ date: "2026-06-01", weight: 67 }] }))!;
+    expect(s.reached).toBe(true);
+    expect(s.toGo).toBe(0);
+  });
+  it("リバウンドで開始より重くても done は 0 未満にならない", () => {
+    const s = goalSnapshot(
+      buildDB({
+        weightLog: [
+          { date: "2026-06-01", weight: 75 },
+          { date: "2026-06-30", weight: 76 },
+        ],
+      }),
+    )!;
+    expect(s.done).toBe(0);
+  });
+  it("profile か体重が無ければ null", () => {
+    expect(goalSnapshot(buildDB())).toBeNull();
+    expect(goalSnapshot(buildDB({ profile: null }))).toBeNull();
   });
 });
 

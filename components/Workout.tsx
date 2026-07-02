@@ -5,8 +5,8 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { DB, Workout, Mutate } from "@/types";
 import { getDay, withDay } from "@/lib/calc";
-import { uid, n, round } from "@/lib/format";
-import { Card, Num, SectionLabel, Field, Modal, inputCls } from "@/components/ui";
+import { uid, n, round, fmtDate } from "@/lib/format";
+import { Card, Num, SectionLabel, Field, Modal, ConfirmDialog, inputCls } from "@/components/ui";
 import { DateNav } from "@/components/DateNav";
 
 function WorkoutForm({ onAdd, onClose }: { onAdd: (w: Workout) => void; onClose: () => void }) {
@@ -72,26 +72,30 @@ export function WorkoutScreen({
   db,
   date,
   setDate,
+  today,
   mutate,
 }: {
   db: DB;
   date: string;
   setDate: (d: string) => void;
+  today: string;
   mutate: Mutate;
 }) {
   const day = getDay(db, date);
   const [open, setOpen] = useState(false);
+  const [delTarget, setDelTarget] = useState<Workout | null>(null);
   const add = (w: Workout) =>
     mutate((d) => withDay(d, date, (dy) => ({ ...dy, workouts: [...dy.workouts, w] })));
-  const del = (id: string) =>
+  const remove = (id: string) =>
     mutate((d) => withDay(d, date, (dy) => ({ ...dy, workouts: dy.workouts.filter((w) => w.id !== id) })));
   const totalVol = day.workouts.reduce((a, w) => a + w.weight * w.reps * w.sets, 0);
+  const isToday = date === today;
   return (
     <div className="pb-4">
-      <DateNav date={date} setDate={setDate} />
+      <DateNav date={date} setDate={setDate} today={today} />
       <div className="px-4 space-y-4">
         <Card className="p-5">
-          <SectionLabel>今日のトレーニング</SectionLabel>
+          <SectionLabel>{isToday ? "今日のトレーニング" : `${fmtDate(date)}のトレーニング`}</SectionLabel>
           <div className="mt-2 grid grid-cols-2 gap-2 text-center">
             <div className="rounded-xl bg-slate-50 py-3">
               <div className="text-[11px] text-slate-400">種目数</div>
@@ -123,18 +127,18 @@ export function WorkoutScreen({
               <p className="py-3 text-xs text-slate-400">この日の筋トレを記録しましょう。</p>
             )}
             {day.workouts.map((w) => (
-              <div key={w.id} className="flex items-center justify-between py-2.5">
+              <div key={w.id} className="flex items-center justify-between py-2">
                 <div>
                   <p className="text-sm font-medium text-slate-800">{w.ex}</p>
                   <p className="text-[11px] text-slate-400 tabular-nums">
                     {w.weight}kg × {w.reps}回 × {w.sets}セット
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Num className="text-xs text-slate-400">{round(w.weight * w.reps * w.sets)}kg</Num>
                   <button
-                    onClick={() => del(w.id)}
-                    className="text-slate-300 hover:text-rose-500"
+                    onClick={() => setDelTarget(w)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:text-rose-500 active:bg-slate-100"
                     aria-label="削除"
                   >
                     <Trash2 size={16} />
@@ -146,6 +150,14 @@ export function WorkoutScreen({
         </Card>
       </div>
       {open && <WorkoutForm onAdd={add} onClose={() => setOpen(false)} />}
+      {delTarget && (
+        <ConfirmDialog
+          title="種目を削除"
+          message={`「${delTarget.ex}」(${delTarget.weight}kg × ${delTarget.reps}回 × ${delTarget.sets}セット) を削除します。よろしいですか？`}
+          onConfirm={() => remove(delTarget.id)}
+          onClose={() => setDelTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -35,6 +35,8 @@
 
 プロトの `db` オブジェクトをそのまま型定義に落とす。
 
+> **2026-07 変更**: `Slot` は永続データに言語非依存のキー（`"breakfast" | "lunch" | "dinner" | "snack"`）で保存する。表示名は `SLOT_LABELS`（`lib/constants.ts`）で引く。旧データ（日本語リテラル）は読み込み時に移行される（`lib/migrate.ts`、schemaVersion 1→2）。
+
 ```typescript
 type Sex = "male" | "female";
 type Slot = "朝" | "昼" | "夜" | "間食";

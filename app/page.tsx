@@ -1,15 +1,17 @@
 "use client";
 
 // アプリシェル: ヘッダー＋4タブ（ホーム/記録/筋トレ/食品）＋ボトムナビ＋設定モーダル。
-import { useEffect, useState } from "react";
-import { Home, NotebookPen, Dumbbell, Database, Settings } from "lucide-react";
+// 表示日はタブ間で共有する（ホームで見た日と記録タブの日がずれないように）。
+import { useEffect, useRef, useState } from "react";
+import { Home, NotebookPen, Dumbbell, Database, Settings, AlertTriangle } from "lucide-react";
 import { useDietStore } from "@/store/useDietStore";
-import { todayStr } from "@/lib/format";
+import { useToday } from "@/hooks/useToday";
 import { HomeScreen } from "@/components/Home";
 import { LogScreen } from "@/components/Log";
 import { WorkoutScreen } from "@/components/Workout";
 import { FoodScreen } from "@/components/Food";
 import { SettingsModal } from "@/components/Settings";
+import { Card, ConfirmDialog } from "@/components/ui";
 
 type TabId = "home" | "log" | "workout" | "food";
 
@@ -23,16 +25,67 @@ const TABS: { id: TabId; label: string; icon: typeof Home }[] = [
 export default function App() {
   const db = useDietStore((s) => s.db);
   const loaded = useDietStore((s) => s.loaded);
+  const loadError = useDietStore((s) => s.loadError);
+  const saveError = useDietStore((s) => s.saveError);
   const init = useDietStore((s) => s.init);
+  const resetToDefault = useDietStore((s) => s.resetToDefault);
   const mutate = useDietStore((s) => s.mutate);
 
+  const today = useToday();
   const [tab, setTab] = useState<TabId>("home");
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(today);
   const [settings, setSettings] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     void init();
   }, [init]);
+
+  // 日付をまたいだら、「今日」を見ていた場合だけ選択日も新しい今日へ進める。
+  const prevToday = useRef(today);
+  useEffect(() => {
+    if (prevToday.current !== today) {
+      if (date === prevToday.current) setDate(today);
+      prevToday.current = today;
+    }
+  }, [today, date]);
+
+  if (loadError) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center bg-slate-50 px-4">
+        <Card className="w-full p-6 text-center">
+          <AlertTriangle size={28} className="mx-auto text-amber-500" />
+          <p className="mt-3 text-sm font-semibold text-slate-800">データを読み込めませんでした</p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            保存されているデータが壊れている可能性があります。再試行するか、初期化して新しく始められます（初期化すると保存済みの記録は失われます）。
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => void init()}
+              className="rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600"
+            >
+              再試行
+            </button>
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="rounded-xl bg-rose-500 py-2.5 text-sm font-semibold text-white"
+            >
+              初期化して開始
+            </button>
+          </div>
+        </Card>
+        {confirmReset && (
+          <ConfirmDialog
+            title="データを初期化"
+            message="保存されているすべての記録を削除して、新しく始めます。この操作は取り消せません。"
+            confirmLabel="初期化する"
+            onConfirm={resetToDefault}
+            onClose={() => setConfirmReset(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (!loaded || !db) {
     return (
@@ -56,10 +109,18 @@ export default function App() {
           <Settings size={20} />
         </button>
       </header>
+      {saveError && (
+        <div role="alert" className="flex items-center gap-2 bg-rose-50 px-4 py-2 text-[12px] text-rose-700">
+          <AlertTriangle size={14} className="shrink-0" />
+          保存に失敗しました。端末の空き容量やプライベートブラウズ設定を確認してください。
+        </div>
+      )}
       <main className="flex-1">
-        {tab === "home" && <HomeScreen db={db} openSettings={() => setSettings(true)} />}
-        {tab === "log" && <LogScreen db={db} date={date} setDate={setDate} mutate={mutate} />}
-        {tab === "workout" && <WorkoutScreen db={db} date={date} setDate={setDate} mutate={mutate} />}
+        {tab === "home" && (
+          <HomeScreen db={db} date={date} setDate={setDate} today={today} openSettings={() => setSettings(true)} />
+        )}
+        {tab === "log" && <LogScreen db={db} date={date} setDate={setDate} today={today} mutate={mutate} />}
+        {tab === "workout" && <WorkoutScreen db={db} date={date} setDate={setDate} today={today} mutate={mutate} />}
         {tab === "food" && <FoodScreen db={db} mutate={mutate} />}
       </main>
       <nav className="sticky bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
@@ -70,6 +131,7 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
+              aria-current={active ? "page" : undefined}
               className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium ${
                 active ? "text-emerald-600" : "text-slate-400"
               }`}
@@ -80,7 +142,7 @@ export default function App() {
           );
         })}
       </nav>
-      {settings && <SettingsModal db={db} mutate={mutate} onClose={() => setSettings(false)} />}
+      {settings && <SettingsModal db={db} mutate={mutate} today={today} onClose={() => setSettings(false)} />}
     </div>
   );
 }
